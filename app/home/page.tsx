@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
+import CalendarWidget from "@/components/CalendarWidget"
 
 interface Photo {
   id: string
@@ -47,7 +48,7 @@ export default function HomeScreen() {
     return () => clearInterval(timer)
   }, [photos.length])
 
-  // reset index when photos reload (e.g. deleted current photo)
+  // reset index when photos reload
   useEffect(() => {
     setIdx((i) => (photos.length > 0 ? i % photos.length : 0))
   }, [photos])
@@ -77,7 +78,7 @@ export default function HomeScreen() {
               <div className="text-7xl mb-4">📷</div>
               <p className="text-xl font-light">Noch keine Fotos</p>
               <p className="text-sm mt-2 text-gray-700">
-                Im Dashboard unter „Fotos" hochladen
+                Im Dashboard unter „Einstellungen" hochladen
               </p>
             </div>
           </div>
@@ -99,14 +100,12 @@ export default function HomeScreen() {
       </div>
 
       {/* ── Side panel (tablet / desktop) ──────────────────────── */}
-      <aside className="hidden md:flex flex-col items-center py-10 gap-6 bg-gray-950 shrink-0"
-        style={{ width: 120 }}>
+      <aside className="hidden md:flex flex-col py-8 px-4 gap-6 bg-gray-950 shrink-0 overflow-y-auto"
+        style={{ width: 220 }}>
 
-        <Link
-          href="/dashboard"
-          className="flex flex-col items-center gap-2 group"
-        >
-          <div className="w-16 h-16 rounded-2xl overflow-hidden ring-2 ring-transparent group-hover:ring-[#4a88c2] transition-all duration-200 shadow-lg">
+        {/* Dashboard button */}
+        <Link href="/dashboard" className="flex flex-col items-center gap-2 group shrink-0">
+          <div className="w-14 h-14 rounded-2xl overflow-hidden ring-2 ring-transparent group-hover:ring-[#4a88c2] transition-all duration-200 shadow-lg">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/apple-touch-icon.png" alt="Dashboard" className="w-full h-full" />
           </div>
@@ -115,28 +114,28 @@ export default function HomeScreen() {
           </span>
         </Link>
 
-        {/* placeholder slots for future widgets */}
-        <div className="w-14 h-14 rounded-2xl border border-dashed border-gray-800" />
-        <div className="w-14 h-14 rounded-2xl border border-dashed border-gray-800" />
+        {/* Divider */}
+        <div className="border-t border-gray-800 shrink-0" />
+
+        {/* Calendar widget */}
+        <div className="flex-1 min-h-0">
+          <div className="flex items-center gap-1.5 mb-3">
+            <span className="text-sm">📅</span>
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Heute</span>
+          </div>
+          <CalendarWidget variant="dark" />
+        </div>
       </aside>
 
       {/* ── Bottom bar (mobile) ─────────────────────────────────── */}
       <div className="md:hidden flex items-center gap-4 px-6 py-3 bg-black/80 backdrop-blur-sm shrink-0">
-        <Link
-          href="/dashboard"
-          className="flex items-center gap-3 group"
-        >
+        <Link href="/dashboard" className="flex items-center gap-3 group">
           <div className="w-11 h-11 rounded-xl overflow-hidden ring-2 ring-transparent group-active:ring-[#4a88c2] transition-all">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/apple-touch-icon.png" alt="Dashboard" className="w-full h-full" />
           </div>
           <span className="text-sm text-gray-400">Dashboard</span>
         </Link>
-        {/* future widget placeholders */}
-        <div className="ml-auto flex gap-3">
-          <div className="w-10 h-10 rounded-xl border border-dashed border-gray-800" />
-          <div className="w-10 h-10 rounded-xl border border-dashed border-gray-800" />
-        </div>
       </div>
 
     </div>
