@@ -33,3 +33,10 @@ model Task {
   category    String    @default("general")
   createdAt   DateTime  @default(now())
 }
+
+model Photo {
+  id           String   @id @default(cuid())
+  filename     String   @unique
+  originalName String
+  createdAt    DateTime @default(now())
+}

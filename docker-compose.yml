@@ -7,6 +7,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    volumes:
+      - photos_data:/app/data/photos
     networks:
       - internal
       - traefik-proxy
@@ -41,6 +43,7 @@ services:
 
 volumes:
   db_data:
+  photos_data:
 
 networks:
   internal:
