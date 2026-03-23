@@ -29,6 +29,7 @@ data/
 .DS_Store
 *.pem
 /tmp
+ical.txt
 
 # prisma
 prisma/dev.db
