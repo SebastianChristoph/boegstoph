@@ -9,6 +9,7 @@ const withPWA = withPWAInit({
 
 const nextConfig = {
   output: "standalone",
+  serverExternalPackages: ["node-ical"],
 }
 
 export default withPWA(nextConfig)
