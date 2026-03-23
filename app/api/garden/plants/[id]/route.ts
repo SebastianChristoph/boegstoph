@@ -19,6 +19,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       harvestDays: body.harvestDays != null ? parseInt(body.harvestDays) : null,
       openfarmSlug: body.openfarmSlug,
       openfarmData: body.openfarmData,
+      thumbnailUrl: body.thumbnailUrl ?? null,
     },
   })
   return NextResponse.json(plant)

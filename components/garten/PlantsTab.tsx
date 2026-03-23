@@ -13,6 +13,7 @@ interface GardenPlant {
   harvestDays: number | null
   openfarmSlug: string | null
   openfarmData: unknown
+  thumbnailUrl: string | null
 }
 
 interface OpenfarmCrop {
@@ -43,6 +44,7 @@ const METHOD_LABELS: Record<string, string> = {
 const emptyForm = () => ({
   name: "", variety: "", sowingMethod: "INDOOR",
   weeksIndoor: "", weeksToPike: "", daysToMaturity: "", harvestDays: "",
+  thumbnailUrl: "",
 })
 
 export default function PlantsTab() {
@@ -55,6 +57,7 @@ export default function PlantsTab() {
   const [searching, setSearching] = useState(false)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [addingToSeason, setAddingToSeason] = useState<string | null>(null)
+  const [showTimeline, setShowTimeline] = useState(false)
 
   const load = useCallback(async () => {
     const res = await fetch("/api/garden/plants")
@@ -63,7 +66,7 @@ export default function PlantsTab() {
 
   useEffect(() => { load() }, [load])
 
-  function openAdd() { setForm(emptyForm()); setOpenfarmResults([]); setOpenfarmQuery(""); setShowAdd(true); setEditId(null) }
+  function openAdd() { setForm(emptyForm()); setOpenfarmResults([]); setOpenfarmQuery(""); setShowAdd(true); setEditId(null); setShowTimeline(false) }
   function openEdit(p: GardenPlant) {
     setForm({
       name: p.name, variety: p.variety ?? "", sowingMethod: p.sowingMethod,
@@ -71,8 +74,9 @@ export default function PlantsTab() {
       weeksToPike: p.weeksToPike?.toString() ?? "",
       daysToMaturity: p.daysToMaturity?.toString() ?? "",
       harvestDays: p.harvestDays?.toString() ?? "",
+      thumbnailUrl: p.thumbnailUrl ?? "",
     })
-    setEditId(p.id); setShowAdd(false); setOpenfarmResults([]); setOpenfarmQuery("")
+    setEditId(p.id); setShowAdd(false); setOpenfarmResults([]); setOpenfarmQuery(""); setShowTimeline(false)
   }
 
   async function searchOpenfarm() {
@@ -94,8 +98,10 @@ export default function PlantsTab() {
       daysToMaturity: a.growing_degree_days ? Math.round(a.growing_degree_days / 15).toString() : f.daysToMaturity,
       harvestDays: a.harvest_days ? a.harvest_days.toString() : f.harvestDays,
       sowingMethod: a.sowing_method?.toLowerCase().includes("direct") ? "DIRECT" : f.sowingMethod,
+      thumbnailUrl: a.thumbnail_url ?? f.thumbnailUrl,
     }))
     setOpenfarmResults([])
+    setShowTimeline(true)
   }
 
   async function save() {
@@ -158,9 +164,9 @@ export default function PlantsTab() {
         </div>
       </div>
 
-      {/* OpenFarm search */}
+      {/* Plant search */}
       <div className="border border-gray-200 rounded-xl p-3 bg-gray-50">
-        <p className="text-xs text-gray-500 mb-2">🌐 OpenFarm Suche (optional)</p>
+        <p className="text-xs text-gray-500 mb-2">🔍 Pflanze suchen (optional)</p>
         <div className="flex gap-2">
           <input value={openfarmQuery} onChange={e => setOpenfarmQuery(e.target.value)}
             onKeyDown={e => e.key === "Enter" && searchOpenfarm()}
@@ -200,25 +206,30 @@ export default function PlantsTab() {
       </div>
 
       {/* Timeline overrides */}
-      <details className="text-sm">
-        <summary className="cursor-pointer text-xs text-gray-500 select-none">Zeitplan anpassen (optional)</summary>
-        <div className="grid grid-cols-2 gap-3 mt-2">
-          {[
-            { key: "weeksIndoor", label: "Wochen Voranzucht", placeholder: "Standard: 8" },
-            { key: "weeksToPike", label: "Wochen bis Pikieren", placeholder: "Standard: 4" },
-            { key: "daysToMaturity", label: "Tage bis Ernte", placeholder: "Standard: 60" },
-            { key: "harvestDays", label: "Erntefenster (Tage)", placeholder: "Standard: 30" },
-          ].map(({ key, label, placeholder }) => (
-            <div key={key}>
-              <label className="text-xs text-gray-500 mb-1 block">{label}</label>
-              <input type="number" value={(form as Record<string, string>)[key]}
-                onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                placeholder={placeholder}
-                className="w-full border border-gray-300 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400" />
-            </div>
-          ))}
-        </div>
-      </details>
+      <div className="text-sm">
+        <button type="button" onClick={() => setShowTimeline(t => !t)}
+          className="text-xs text-gray-500 select-none flex items-center gap-1">
+          <span>{showTimeline ? "▲" : "▼"}</span> Zeitplan anpassen (optional)
+        </button>
+        {showTimeline && (
+          <div className="grid grid-cols-2 gap-3 mt-2">
+            {[
+              { key: "weeksIndoor", label: "Wochen Voranzucht", placeholder: "Standard: 8" },
+              { key: "weeksToPike", label: "Wochen bis Pikieren", placeholder: "Standard: 4" },
+              { key: "daysToMaturity", label: "Tage bis Ernte", placeholder: "Standard: 60" },
+              { key: "harvestDays", label: "Erntefenster (Tage)", placeholder: "Standard: 30" },
+            ].map(({ key, label, placeholder }) => (
+              <div key={key}>
+                <label className="text-xs text-gray-500 mb-1 block">{label}</label>
+                <input type="number" value={(form as Record<string, string>)[key]}
+                  onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+                  placeholder={placeholder}
+                  className="w-full border border-gray-300 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400" />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div className="flex gap-2 pt-1">
         <button onClick={save} disabled={!form.name.trim()}
@@ -266,6 +277,12 @@ export default function PlantsTab() {
               ) : (
                 <>
                   <div className="flex items-center gap-3 px-4 py-3">
+                    {plant.thumbnailUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={plant.thumbnailUrl} alt="" className="w-9 h-9 rounded-lg object-cover shrink-0" />
+                    ) : (
+                      <span className="text-xl shrink-0">🌱</span>
+                    )}
                     <div className="flex-1 min-w-0">
                       <div className="font-medium text-gray-900 text-sm">
                         {plant.name}{plant.variety && <span className="text-gray-400 font-normal ml-1">· {plant.variety}</span>}

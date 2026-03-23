@@ -12,6 +12,7 @@ interface GardenPlant {
   id: string
   name: string
   variety: string | null
+  thumbnailUrl: string | null
 }
 
 interface GardenSeason {
@@ -19,7 +20,7 @@ interface GardenSeason {
   year: number
   bedId: string | null
   plantId: string
-  plant: { name: string; variety: string | null }
+  plant: { name: string; variety: string | null; thumbnailUrl: string | null }
 }
 
 const CURRENT_YEAR = new Date().getFullYear()
@@ -187,7 +188,11 @@ export default function BedsTab() {
                     <div className="flex flex-wrap gap-1.5 mb-2">
                       {bedSeasons.map(s => (
                         <span key={s.id} className="flex items-center gap-1 text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                          🌱 {s.plant.name}{s.plant.variety ? ` (${s.plant.variety})` : ""}
+                          {s.plant.thumbnailUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={s.plant.thumbnailUrl} alt="" className="w-4 h-4 rounded object-cover shrink-0" />
+                          ) : "🌱"}
+                          {s.plant.name}{s.plant.variety ? ` (${s.plant.variety})` : ""}
                           <button onClick={() => removeFromBed(s.id)} className="text-green-600 hover:text-red-500 ml-0.5">✕</button>
                         </span>
                       ))}
@@ -199,8 +204,12 @@ export default function BedsTab() {
                         <p className="text-xs text-gray-500 mb-1">Pflanze wählen:</p>
                         {plants.map(p => (
                           <button key={p.id} onClick={() => assignPlantToBed(p.id, bed.id)}
-                            className="block w-full text-left text-xs bg-white border border-gray-200 hover:border-primary-400 rounded-lg px-3 py-1.5">
-                            🌱 {p.name}{p.variety ? ` (${p.variety})` : ""}
+                            className="flex items-center gap-2 w-full text-left text-xs bg-white border border-gray-200 hover:border-primary-400 rounded-lg px-3 py-1.5">
+                            {p.thumbnailUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={p.thumbnailUrl} alt="" className="w-5 h-5 rounded object-cover shrink-0" />
+                            ) : <span>🌱</span>}
+                            {p.name}{p.variety ? ` (${p.variety})` : ""}
                           </button>
                         ))}
                         <button onClick={() => setAssigning(null)} className="text-xs text-gray-400 mt-1">Abbrechen</button>

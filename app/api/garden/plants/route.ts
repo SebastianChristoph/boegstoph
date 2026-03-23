@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
       harvestDays: body.harvestDays ? parseInt(body.harvestDays) : null,
       openfarmSlug: body.openfarmSlug || null,
       openfarmData: body.openfarmData || null,
+      thumbnailUrl: body.thumbnailUrl || null,
     },
   })
   return NextResponse.json(plant, { status: 201 })
