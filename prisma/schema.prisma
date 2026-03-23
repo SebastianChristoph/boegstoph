@@ -41,7 +41,8 @@ model Task {
   description String?
   dueDate     DateTime?
   completed   Boolean   @default(false)
-  category    String    @default("general")
+  category    String?
+  sortOrder   Int       @default(0)
   createdAt   DateTime  @default(now())
 }
 
