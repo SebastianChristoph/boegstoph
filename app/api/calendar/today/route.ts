@@ -55,6 +55,7 @@ function dowFromDateStr(dateStr: string): string {
 interface ParsedVEvent {
   uid: string
   summary: string
+  status: string | null  // CONFIRMED, CANCELLED, TENTATIVE, etc.
   dtStartVal: string
   dtStartKey: string   // includes params like TZID=...
   dtEndVal: string | null
@@ -93,6 +94,7 @@ function parseICS(text: string): ParsedVEvent[] {
         events.push({
           uid: cur["UID"] ?? String(Math.random()),
           summary: cur["SUMMARY"] ?? "(kein Titel)",
+          status: cur["STATUS"] ?? null,
           dtStartVal,
           dtStartKey: cur["__param_DTSTART"] ?? "DTSTART",
           dtEndVal: cur["DTEND"] ?? null,
@@ -234,6 +236,8 @@ function buildTodayEvents(parsed: ParsedVEvent[], todayStr: string): CalendarEve
   const results: CalendarEvent[] = []
 
   for (const ev of parsed) {
+    // Skip cancelled events (Google Calendar marks deleted occurrences/series as CANCELLED)
+    if (ev.status === "CANCELLED") continue
     const tzid = ev.dtStartKey.includes("TZID=")
       ? ev.dtStartKey.split("TZID=")[1].split(";")[0]
       : "Europe/Berlin"
