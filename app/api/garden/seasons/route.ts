@@ -7,9 +7,26 @@ import { generateTodosFromTimeline } from "@/lib/gartenTimeline"
 export const dynamic = "force-dynamic"
 
 export async function GET(req: NextRequest) {
-  const year = parseInt(req.nextUrl.searchParams.get("year") ?? String(new Date().getFullYear()))
+  const yearParam = req.nextUrl.searchParams.get("year")
+  const minYearParam = req.nextUrl.searchParams.get("minYear")
+  const slim = req.nextUrl.searchParams.get("slim") === "1"
+
+  const where = minYearParam
+    ? { year: { gte: parseInt(minYearParam) } }
+    : { year: parseInt(yearParam ?? String(new Date().getFullYear())) }
+
+  if (slim) {
+    // Lightweight: only fields needed for crop rotation history
+    const seasons = await prisma.gardenSeason.findMany({
+      where,
+      select: { id: true, plantId: true, bedId: true, year: true, plant: { select: { name: true } } },
+      orderBy: { year: "asc" },
+    })
+    return NextResponse.json(seasons)
+  }
+
   const seasons = await prisma.gardenSeason.findMany({
-    where: { year },
+    where,
     include: {
       plant: true,
       bed: true,

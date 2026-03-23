@@ -7,7 +7,14 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const session = await getServerSession(authOptions)
   if (!session) return new NextResponse("Unauthorized", { status: 401 })
   const body = await req.json()
-  const bed = await prisma.gardenBed.update({ where: { id: params.id }, data: { name: body.name?.trim(), size: body.size?.trim() || null } })
+  const data: Record<string, unknown> = {}
+  if (body.name !== undefined) data.name = body.name.trim()
+  if (body.size !== undefined) data.size = body.size?.trim() || null
+  if (body.gridCols !== undefined) data.gridCols = body.gridCols
+  if (body.gridRows !== undefined) data.gridRows = body.gridRows
+  if (body.gridCells !== undefined) data.gridCells = body.gridCells
+  if (body.cellSize !== undefined) data.cellSize = body.cellSize
+  const bed = await prisma.gardenBed.update({ where: { id: params.id }, data })
   return NextResponse.json(bed)
 }
 
