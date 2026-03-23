@@ -6,6 +6,7 @@ const links = [
   { href: "/dashboard", label: "Start", icon: "🏠" },
   { href: "/shopping", label: "Einkaufslisten", icon: "🛒" },
   { href: "/tasks", label: "Aufgaben", icon: "✅" },
+  { href: "/ideen", label: "Ideen", icon: "💡" },
   { href: "/einstellungen", label: "Einstellungen", icon: "⚙️" },
 ]
 export default function Sidebar() {
