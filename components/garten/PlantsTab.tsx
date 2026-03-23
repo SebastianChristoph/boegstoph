@@ -56,6 +56,7 @@ const emptyForm = () => ({
 
 export default function PlantsTab() {
   const [plants, setPlants] = useState<GardenPlant[]>([])
+  const [seasonPlantIds, setSeasonPlantIds] = useState<Set<string>>(new Set())
   const [showAdd, setShowAdd] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm())
@@ -68,8 +69,15 @@ export default function PlantsTab() {
   const [showNeighbors, setShowNeighbors] = useState(false)
 
   const load = useCallback(async () => {
-    const res = await fetch("/api/garden/plants")
-    if (res.ok) setPlants(await res.json())
+    const [plantsRes, seasonsRes] = await Promise.all([
+      fetch("/api/garden/plants"),
+      fetch(`/api/garden/seasons?year=${CURRENT_YEAR}`),
+    ])
+    if (plantsRes.ok) setPlants(await plantsRes.json())
+    if (seasonsRes.ok) {
+      const seasons: { plantId: string }[] = await seasonsRes.json()
+      setSeasonPlantIds(new Set(seasons.map(s => s.plantId)))
+    }
   }, [])
 
   useEffect(() => { load() }, [load])
@@ -160,6 +168,7 @@ export default function PlantsTab() {
     })
     setAddingToSeason(null)
     if (res.ok) {
+      setSeasonPlantIds(prev => new Set([...Array.from(prev), plantId]))
       alert(`Zur Saison ${CURRENT_YEAR} hinzugefügt! Todos wurden automatisch generiert.`)
     }
   }
@@ -355,8 +364,12 @@ export default function PlantsTab() {
                       <span className="text-xl shrink-0">🌱</span>
                     )}
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium text-gray-900 text-sm">
-                        {plant.name}{plant.variety && <span className="text-gray-400 font-normal ml-1">· {plant.variety}</span>}
+                      <div className="font-medium text-gray-900 text-sm flex items-center gap-1.5 flex-wrap">
+                        {plant.name}{plant.variety && <span className="text-gray-400 font-normal">· {plant.variety}</span>}
+                        {seasonPlantIds.has(plant.id)
+                          ? <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">{CURRENT_YEAR} ✓</span>
+                          : <span className="text-[10px] bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded-full">nicht in Saison</span>
+                        }
                       </div>
                       <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-2">
                         <span>{METHOD_LABELS[plant.sowingMethod]}</span>
@@ -401,12 +414,18 @@ export default function PlantsTab() {
                           )}
                         </div>
                       )}
-                      <button
-                        onClick={() => addToSeason(plant.id)}
-                        disabled={addingToSeason === plant.id}
-                        className="w-full bg-green-600 hover:bg-green-700 text-white py-1.5 rounded-xl text-xs font-medium disabled:opacity-40">
-                        {addingToSeason === plant.id ? "…" : `+ Zur Saison ${CURRENT_YEAR} hinzufügen`}
-                      </button>
+                      {seasonPlantIds.has(plant.id) ? (
+                        <div className="text-xs text-green-700 bg-green-50 rounded-xl py-1.5 text-center font-medium">
+                          ✓ In Saison {CURRENT_YEAR}
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => addToSeason(plant.id)}
+                          disabled={addingToSeason === plant.id}
+                          className="w-full bg-green-600 hover:bg-green-700 text-white py-1.5 rounded-xl text-xs font-medium disabled:opacity-40">
+                          {addingToSeason === plant.id ? "…" : `+ Zur Saison ${CURRENT_YEAR} hinzufügen`}
+                        </button>
+                      )}
                     </div>
                   )}
                 </>
