@@ -7,12 +7,29 @@ export const dynamic = "force-dynamic"
 
 const NEIGHBOR_SELECT = { select: { id: true, name: true, variety: true } }
 
+type NeighborRef = { id: string; name: string; variety: string | null }
+function dedup(arr: NeighborRef[]): NeighborRef[] {
+  const seen = new Set<string>()
+  return arr.filter(n => { if (seen.has(n.id)) return false; seen.add(n.id); return true })
+}
+
 export async function GET() {
   const plants = await prisma.gardenPlant.findMany({
     orderBy: { name: "asc" },
-    include: { goodNeighbors: NEIGHBOR_SELECT, badNeighbors: NEIGHBOR_SELECT },
+    include: {
+      goodNeighbors: NEIGHBOR_SELECT,
+      goodNeighborOf: NEIGHBOR_SELECT,
+      badNeighbors: NEIGHBOR_SELECT,
+      badNeighborOf: NEIGHBOR_SELECT,
+    },
   })
-  return NextResponse.json(plants)
+  // Merge both relation directions so each plant sees all relevant neighbors
+  const result = plants.map(({ goodNeighborOf, badNeighborOf, ...p }) => ({
+    ...p,
+    goodNeighbors: dedup([...p.goodNeighbors, ...goodNeighborOf]),
+    badNeighbors: dedup([...p.badNeighbors, ...badNeighborOf]),
+  }))
+  return NextResponse.json(result)
 }
 
 export async function POST(req: NextRequest) {

@@ -28,10 +28,18 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     },
     include: {
       goodNeighbors: { select: { id: true, name: true, variety: true } },
+      goodNeighborOf: { select: { id: true, name: true, variety: true } },
       badNeighbors: { select: { id: true, name: true, variety: true } },
+      badNeighborOf: { select: { id: true, name: true, variety: true } },
     },
   })
-  return NextResponse.json(plant)
+  const { goodNeighborOf, badNeighborOf, ...rest } = plant
+  const dedup = <T extends { id: string }>(arr: T[]) => arr.filter((n, i, a) => a.findIndex(x => x.id === n.id) === i)
+  return NextResponse.json({
+    ...rest,
+    goodNeighbors: dedup([...rest.goodNeighbors, ...goodNeighborOf]),
+    badNeighbors: dedup([...rest.badNeighbors, ...badNeighborOf]),
+  })
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
