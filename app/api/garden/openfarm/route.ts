@@ -19,6 +19,20 @@ interface GrowstuffCrop {
   height: number | null
 }
 
+async function fetchGrowstuffPhoto(slug: string): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://www.growstuff.org/crops/${encodeURIComponent(slug)}/photos.json`,
+      { headers: { "Accept": "application/json" }, signal: AbortSignal.timeout(4000) }
+    )
+    if (!res.ok) return null
+    const photos = await res.json()
+    return photos?.query?.[0]?.thumbnail_url ?? null
+  } catch {
+    return null
+  }
+}
+
 async function fetchGrowstuff(query: string) {
   const slug = query.toLowerCase().trim().replace(/\s+/g, "-")
   const base = `https://www.growstuff.org/crops/${encodeURIComponent(slug)}`
@@ -69,7 +83,16 @@ export async function GET(req: NextRequest) {
   // 1. Search local static DB first (German names, full growing data)
   const localResults = searchPlants(q)
   if (localResults.length > 0) {
-    return NextResponse.json({ data: localResults })
+    // Enrich local results with Growstuff photos in parallel
+    const withPhotos = await Promise.all(
+      localResults.map(async plant => {
+        const thumbnail_url = await fetchGrowstuffPhoto(plant.attributes.slug)
+        return thumbnail_url
+          ? { ...plant, attributes: { ...plant.attributes, thumbnail_url } }
+          : plant
+      })
+    )
+    return NextResponse.json({ data: withPhotos })
   }
 
   // 2. Fallback: Growstuff slug lookup (English queries / uncommon plants)
