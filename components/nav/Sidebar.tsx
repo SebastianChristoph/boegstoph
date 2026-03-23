@@ -27,7 +27,7 @@ export default function Sidebar() {
         })}
       </nav>
       <div className="p-3 border-t border-gray-800">
-        <button onClick={() => signOut({ callbackUrl: "/login" })}
+        <button onClick={() => { localStorage.removeItem("fh_saved_pw"); signOut({ callbackUrl: "/login" }) }}
           className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-400 hover:bg-gray-800 hover:text-white w-full">
           <span className="text-lg">🚪</span>Ausloggen
         </button>

@@ -1,19 +1,48 @@
 "use client"
 import { signIn } from "next-auth/react"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+
+const LS_KEY = "fh_saved_pw"
+
 export default function LoginPage() {
   const [password, setPassword] = useState("")
   const [error, setError] = useState(false)
   const [loading, setLoading] = useState(false)
   const router = useRouter()
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault(); setLoading(true); setError(false)
-    const result = await signIn("credentials", { password, redirect: false })
-    if (result?.ok) { router.push("/dashboard") } else { setError(true); setLoading(false) }
+
+  useEffect(() => {
+    const saved = localStorage.getItem(LS_KEY)
+    if (saved) autoLogin(saved)
+  }, [])
+
+  async function autoLogin(pw: string) {
+    setLoading(true)
+    const result = await signIn("credentials", { password: pw, redirect: false })
+    if (result?.ok) {
+      router.push("/dashboard")
+    } else {
+      localStorage.removeItem(LS_KEY)
+      setLoading(false)
+    }
   }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setLoading(true)
+    setError(false)
+    const result = await signIn("credentials", { password, redirect: false })
+    if (result?.ok) {
+      localStorage.setItem(LS_KEY, password)
+      router.push("/dashboard")
+    } else {
+      setError(true)
+      setLoading(false)
+    }
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="text-5xl mb-4">🏠</div>
@@ -23,7 +52,7 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-4">
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
             className="w-full border border-gray-300 rounded-xl px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-primary-600"
-            placeholder="Passwort" autoFocus />
+            placeholder="Passwort" autoFocus disabled={loading} />
           {error && <p className="text-red-600 text-sm">Falsches Passwort.</p>}
           <button type="submit" disabled={loading || !password}
             className="w-full bg-primary-600 text-white py-3 rounded-xl font-medium disabled:opacity-50">
