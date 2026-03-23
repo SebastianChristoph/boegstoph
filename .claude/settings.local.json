@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:trefle.io)",
+      "WebFetch(domain:docs.trefle.io)",
+      "WebFetch(domain:perenual.com)",
+      "WebFetch(domain:brapi.org)"
+    ]
+  }
+}

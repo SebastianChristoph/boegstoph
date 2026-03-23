@@ -27,6 +27,7 @@ interface OpenfarmCrop {
     row_spacing: number | null
     height: number | null
     growing_degree_days: number | null
+    harvest_days?: number | null
   }
 }
 
@@ -90,6 +91,7 @@ export default function PlantsTab() {
       ...f,
       name: f.name || a.name,
       daysToMaturity: a.growing_degree_days ? Math.round(a.growing_degree_days / 15).toString() : f.daysToMaturity,
+      harvestDays: a.harvest_days ? a.harvest_days.toString() : f.harvestDays,
       sowingMethod: a.sowing_method?.toLowerCase().includes("direct") ? "DIRECT" : f.sowingMethod,
     }))
     setOpenfarmResults([])
