@@ -65,3 +65,62 @@ model BirthdayWish {
   wish      String
   createdAt DateTime @default(now())
 }
+
+model GardenPlant {
+  id             String         @id @default(cuid())
+  name           String
+  variety        String?
+  sowingMethod   String         @default("INDOOR")
+  weeksIndoor    Int?
+  weeksToPike    Int?
+  daysToMaturity Int?
+  harvestDays    Int?
+  openfarmSlug   String?
+  openfarmData   Json?
+  createdAt      DateTime       @default(now())
+  seasons        GardenSeason[]
+}
+
+model GardenBed {
+  id        String         @id @default(cuid())
+  name      String
+  size      String?
+  createdAt DateTime       @default(now())
+  seasons   GardenSeason[]
+}
+
+model GardenSeason {
+  id             String        @id @default(cuid())
+  year           Int
+  plantId        String
+  plant          GardenPlant   @relation(fields: [plantId], references: [id], onDelete: Cascade)
+  bedId          String?
+  bed            GardenBed?    @relation(fields: [bedId], references: [id])
+  weeksIndoor    Int?
+  weeksToPike    Int?
+  daysToMaturity Int?
+  harvestDays    Int?
+  createdAt      DateTime      @default(now())
+  todos          GardenTodo[]
+  diary          GardenDiary[]
+}
+
+model GardenTodo {
+  id        String        @id @default(cuid())
+  seasonId  String?
+  season    GardenSeason? @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  title     String
+  dueDate   DateTime?
+  done      Boolean       @default(false)
+  type      String?
+  createdAt DateTime      @default(now())
+}
+
+model GardenDiary {
+  id        String       @id @default(cuid())
+  seasonId  String
+  season    GardenSeason @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  note      String
+  success   Boolean?
+  createdAt DateTime     @default(now())
+}

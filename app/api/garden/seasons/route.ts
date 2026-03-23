@@ -1,0 +1,73 @@
+import { getServerSession } from "next-auth"
+import { NextRequest, NextResponse } from "next/server"
+import { authOptions } from "@/lib/auth"
+import { prisma } from "@/lib/prisma"
+import { generateTodosFromTimeline } from "@/lib/gartenTimeline"
+
+export const dynamic = "force-dynamic"
+
+export async function GET(req: NextRequest) {
+  const year = parseInt(req.nextUrl.searchParams.get("year") ?? String(new Date().getFullYear()))
+  const seasons = await prisma.gardenSeason.findMany({
+    where: { year },
+    include: {
+      plant: true,
+      bed: true,
+      diary: { orderBy: { createdAt: "desc" } },
+    },
+    orderBy: { createdAt: "asc" },
+  })
+  return NextResponse.json(seasons)
+}
+
+export async function POST(req: NextRequest) {
+  const session = await getServerSession(authOptions)
+  if (!session) return new NextResponse("Unauthorized", { status: 401 })
+  const body = await req.json()
+  const { plantId, year, bedId } = body
+
+  const season = await prisma.gardenSeason.create({
+    data: {
+      plantId,
+      year: parseInt(year),
+      bedId: bedId || null,
+      weeksIndoor: body.weeksIndoor ? parseInt(body.weeksIndoor) : null,
+      weeksToPike: body.weeksToPike ? parseInt(body.weeksToPike) : null,
+      daysToMaturity: body.daysToMaturity ? parseInt(body.daysToMaturity) : null,
+      harvestDays: body.harvestDays ? parseInt(body.harvestDays) : null,
+    },
+  })
+
+  const plant = await prisma.gardenPlant.findUnique({ where: { id: plantId } })
+  if (plant) {
+    const seasonForTimeline = {
+      id: season.id,
+      year: season.year,
+      weeksIndoor: season.weeksIndoor,
+      weeksToPike: season.weeksToPike,
+      daysToMaturity: season.daysToMaturity,
+      harvestDays: season.harvestDays,
+      plant: {
+        name: plant.name,
+        variety: plant.variety,
+        sowingMethod: plant.sowingMethod,
+        weeksIndoor: plant.weeksIndoor,
+        weeksToPike: plant.weeksToPike,
+        daysToMaturity: plant.daysToMaturity,
+        harvestDays: plant.harvestDays,
+      },
+    }
+    const todoData = generateTodosFromTimeline(seasonForTimeline)
+    if (todoData.length > 0) {
+      await prisma.gardenTodo.createMany({
+        data: todoData.map(t => ({ title: t.title, dueDate: t.dueDate, type: t.type, seasonId: season.id })),
+      })
+    }
+  }
+
+  const full = await prisma.gardenSeason.findUnique({
+    where: { id: season.id },
+    include: { plant: true, bed: true, diary: true },
+  })
+  return NextResponse.json(full, { status: 201 })
+}
