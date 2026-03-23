@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react"
 
+interface NeighborRef { id: string; name: string; variety: string | null }
+
 interface GardenPlant {
   id: string
   name: string
@@ -14,6 +16,9 @@ interface GardenPlant {
   openfarmSlug: string | null
   openfarmData: unknown
   thumbnailUrl: string | null
+  notes: string | null
+  goodNeighbors: NeighborRef[]
+  badNeighbors: NeighborRef[]
 }
 
 interface OpenfarmCrop {
@@ -44,7 +49,9 @@ const METHOD_LABELS: Record<string, string> = {
 const emptyForm = () => ({
   name: "", variety: "", sowingMethod: "INDOOR",
   weeksIndoor: "", weeksToPike: "", daysToMaturity: "", harvestDays: "",
-  thumbnailUrl: "",
+  thumbnailUrl: "", notes: "",
+  goodNeighborIds: [] as string[],
+  badNeighborIds: [] as string[],
 })
 
 export default function PlantsTab() {
@@ -58,6 +65,7 @@ export default function PlantsTab() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [addingToSeason, setAddingToSeason] = useState<string | null>(null)
   const [showTimeline, setShowTimeline] = useState(false)
+  const [showNeighbors, setShowNeighbors] = useState(false)
 
   const load = useCallback(async () => {
     const res = await fetch("/api/garden/plants")
@@ -66,7 +74,10 @@ export default function PlantsTab() {
 
   useEffect(() => { load() }, [load])
 
-  function openAdd() { setForm(emptyForm()); setOpenfarmResults([]); setOpenfarmQuery(""); setShowAdd(true); setEditId(null); setShowTimeline(false) }
+  function openAdd() {
+    setForm(emptyForm()); setOpenfarmResults([]); setOpenfarmQuery("")
+    setShowAdd(true); setEditId(null); setShowTimeline(false); setShowNeighbors(false)
+  }
   function openEdit(p: GardenPlant) {
     setForm({
       name: p.name, variety: p.variety ?? "", sowingMethod: p.sowingMethod,
@@ -75,8 +86,12 @@ export default function PlantsTab() {
       daysToMaturity: p.daysToMaturity?.toString() ?? "",
       harvestDays: p.harvestDays?.toString() ?? "",
       thumbnailUrl: p.thumbnailUrl ?? "",
+      notes: p.notes ?? "",
+      goodNeighborIds: p.goodNeighbors.map(n => n.id),
+      badNeighborIds: p.badNeighbors.map(n => n.id),
     })
-    setEditId(p.id); setShowAdd(false); setOpenfarmResults([]); setOpenfarmQuery(""); setShowTimeline(false)
+    setEditId(p.id); setShowAdd(false); setOpenfarmResults([]); setOpenfarmQuery("")
+    setShowTimeline(false); setShowNeighbors(false)
   }
 
   async function searchOpenfarm() {
@@ -102,6 +117,17 @@ export default function PlantsTab() {
     }))
     setOpenfarmResults([])
     setShowTimeline(true)
+  }
+
+  function toggleNeighbor(id: string, type: "good" | "bad") {
+    setForm(f => {
+      const goodIds = f.goodNeighborIds.filter(x => x !== id)
+      const badIds = f.badNeighborIds.filter(x => x !== id)
+      if (type === "good" && !f.goodNeighborIds.includes(id)) return { ...f, goodNeighborIds: [...goodIds, id], badNeighborIds: badIds }
+      if (type === "bad" && !f.badNeighborIds.includes(id)) return { ...f, goodNeighborIds: goodIds, badNeighborIds: [...badIds, id] }
+      // clicking same type again → remove
+      return { ...f, goodNeighborIds: goodIds, badNeighborIds: badIds }
+    })
   }
 
   async function save() {
@@ -137,6 +163,9 @@ export default function PlantsTab() {
       alert(`Zur Saison ${CURRENT_YEAR} hinzugefügt! Todos wurden automatisch generiert.`)
     }
   }
+
+  // Plants available for neighbor selection (excluding current plant)
+  const neighborCandidates = plants.filter(p => p.id !== editId)
 
   const formFields = (
     <div className="space-y-3">
@@ -204,6 +233,48 @@ export default function PlantsTab() {
           </ul>
         )}
       </div>
+
+      {/* Notizen */}
+      <div>
+        <label className="text-xs text-gray-500 mb-1 block">Notizen zur Pflanze</label>
+        <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+          placeholder="Erfahrungen, Besonderheiten…" rows={2}
+          className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 resize-none" />
+      </div>
+
+      {/* Nachbarschaft */}
+      {neighborCandidates.length > 0 && (
+        <div className="text-sm">
+          <button type="button" onClick={() => setShowNeighbors(n => !n)}
+            className="text-xs text-gray-500 select-none flex items-center gap-1">
+            <span>{showNeighbors ? "▲" : "▼"}</span> Nachbarschaft festlegen (optional)
+          </button>
+          {showNeighbors && (
+            <div className="mt-2 space-y-1.5 max-h-48 overflow-y-auto pr-1">
+              {neighborCandidates.map(p => {
+                const isGood = form.goodNeighborIds.includes(p.id)
+                const isBad = form.badNeighborIds.includes(p.id)
+                const label = `${p.name}${p.variety ? ` · ${p.variety}` : ""}`
+                return (
+                  <div key={p.id} className="flex items-center gap-2 bg-gray-50 rounded-lg px-2 py-1.5">
+                    <span className="flex-1 text-xs text-gray-700 truncate">{label}</span>
+                    <button onClick={() => toggleNeighbor(p.id, "good")}
+                      title="Guter Nachbar"
+                      className={`text-xs px-2 py-0.5 rounded-lg transition-colors ${isGood ? "bg-green-500 text-white" : "bg-gray-200 text-gray-500 hover:bg-green-100"}`}>
+                      🤝
+                    </button>
+                    <button onClick={() => toggleNeighbor(p.id, "bad")}
+                      title="Schlechter Nachbar"
+                      className={`text-xs px-2 py-0.5 rounded-lg transition-colors ${isBad ? "bg-red-500 text-white" : "bg-gray-200 text-gray-500 hover:bg-red-100"}`}>
+                      🚫
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Timeline overrides */}
       <div className="text-sm">
@@ -287,7 +358,11 @@ export default function PlantsTab() {
                       <div className="font-medium text-gray-900 text-sm">
                         {plant.name}{plant.variety && <span className="text-gray-400 font-normal ml-1">· {plant.variety}</span>}
                       </div>
-                      <div className="text-xs text-gray-500 mt-0.5">{METHOD_LABELS[plant.sowingMethod]}</div>
+                      <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-2">
+                        <span>{METHOD_LABELS[plant.sowingMethod]}</span>
+                        {plant.goodNeighbors.length > 0 && <span className="text-green-600">🤝 {plant.goodNeighbors.length}</span>}
+                        {plant.badNeighbors.length > 0 && <span className="text-red-500">🚫 {plant.badNeighbors.length}</span>}
+                      </div>
                     </div>
                     <button onClick={() => setExpandedId(expandedId === plant.id ? null : plant.id)}
                       className="text-gray-400 hover:text-gray-700 text-xs px-2">
@@ -298,13 +373,34 @@ export default function PlantsTab() {
                   </div>
 
                   {expandedId === plant.id && (
-                    <div className="border-t border-gray-100 px-4 py-3 bg-gray-50">
-                      <div className="grid grid-cols-2 gap-2 text-xs text-gray-600 mb-3">
+                    <div className="border-t border-gray-100 px-4 py-3 bg-gray-50 space-y-3">
+                      <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
                         <div>🌱 Voranzucht: <span className="font-medium">{plant.weeksIndoor ?? 8} Wo. vor Eisheiligen</span></div>
                         <div>🪴 Pikieren: <span className="font-medium">{plant.weeksToPike ?? 4} Wo. nach Aussaat</span></div>
                         <div>🥬 Reifezeit: <span className="font-medium">{plant.daysToMaturity ?? 60} Tage</span></div>
                         <div>📅 Ernte: <span className="font-medium">{plant.harvestDays ?? 30} Tage Fenster</span></div>
                       </div>
+                      {plant.notes && (
+                        <div className="text-xs text-gray-600 bg-white rounded-lg px-3 py-2 border border-gray-100">
+                          📝 {plant.notes}
+                        </div>
+                      )}
+                      {(plant.goodNeighbors.length > 0 || plant.badNeighbors.length > 0) && (
+                        <div className="space-y-1">
+                          {plant.goodNeighbors.length > 0 && (
+                            <div className="text-xs">
+                              <span className="text-green-700 font-medium">🤝 Gute Nachbarn: </span>
+                              <span className="text-gray-600">{plant.goodNeighbors.map(n => n.name + (n.variety ? ` · ${n.variety}` : "")).join(", ")}</span>
+                            </div>
+                          )}
+                          {plant.badNeighbors.length > 0 && (
+                            <div className="text-xs">
+                              <span className="text-red-600 font-medium">🚫 Schlechte Nachbarn: </span>
+                              <span className="text-gray-600">{plant.badNeighbors.map(n => n.name + (n.variety ? ` · ${n.variety}` : "")).join(", ")}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
                       <button
                         onClick={() => addToSeason(plant.id)}
                         disabled={addingToSeason === plant.id}

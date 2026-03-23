@@ -13,6 +13,8 @@ interface GardenPlant {
   name: string
   variety: string | null
   thumbnailUrl: string | null
+  goodNeighbors: { id: string }[]
+  badNeighbors: { id: string }[]
 }
 
 interface GardenSeason {
@@ -24,6 +26,26 @@ interface GardenSeason {
 }
 
 const CURRENT_YEAR = new Date().getFullYear()
+
+function plantLabel(p: { name: string; variety: string | null }) {
+  return p.name + (p.variety ? ` · ${p.variety}` : "")
+}
+
+function getCompatibility(bedPlantIds: string[], allPlants: GardenPlant[]) {
+  const good: string[] = []
+  const bad: string[] = []
+  const bedPlants = allPlants.filter(p => bedPlantIds.includes(p.id))
+  for (let i = 0; i < bedPlants.length; i++) {
+    for (let j = i + 1; j < bedPlants.length; j++) {
+      const a = bedPlants[i], b = bedPlants[j]
+      const isGood = a.goodNeighbors.some(n => n.id === b.id) || b.goodNeighbors.some(n => n.id === a.id)
+      const isBad = a.badNeighbors.some(n => n.id === b.id) || b.badNeighbors.some(n => n.id === a.id)
+      if (isGood) good.push(`${plantLabel(a)} & ${plantLabel(b)}`)
+      if (isBad) bad.push(`${plantLabel(a)} & ${plantLabel(b)}`)
+    }
+  }
+  return { good, bad }
+}
 
 export default function BedsTab() {
   const [beds, setBeds] = useState<GardenBed[]>([])
@@ -185,18 +207,42 @@ export default function BedsTab() {
                   {bedSeasons.length === 0 ? (
                     <p className="text-xs text-gray-400">Keine Pflanzen zugewiesen</p>
                   ) : (
-                    <div className="flex flex-wrap gap-1.5 mb-2">
-                      {bedSeasons.map(s => (
-                        <span key={s.id} className="flex items-center gap-1 text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                          {s.plant.thumbnailUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={s.plant.thumbnailUrl} alt="" className="w-4 h-4 rounded object-cover shrink-0" />
-                          ) : "🌱"}
-                          {s.plant.name}{s.plant.variety ? ` (${s.plant.variety})` : ""}
-                          <button onClick={() => removeFromBed(s.id)} className="text-green-600 hover:text-red-500 ml-0.5">✕</button>
-                        </span>
-                      ))}
-                    </div>
+                    <>
+                      <div className="flex flex-wrap gap-1.5 mb-2">
+                        {bedSeasons.map(s => (
+                          <span key={s.id} className="flex items-center gap-1 text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                            {s.plant.thumbnailUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={s.plant.thumbnailUrl} alt="" className="w-4 h-4 rounded object-cover shrink-0" />
+                            ) : "🌱"}
+                            {s.plant.name}{s.plant.variety ? ` (${s.plant.variety})` : ""}
+                            <button onClick={() => removeFromBed(s.id)} className="text-green-600 hover:text-red-500 ml-0.5">✕</button>
+                          </span>
+                        ))}
+                      </div>
+                      {(() => {
+                        const bedPlantIds = [...new Set(bedSeasons.map(s => s.plantId))]
+                        if (bedPlantIds.length < 2) return null
+                        const { good, bad } = getCompatibility(bedPlantIds, plants)
+                        if (good.length === 0 && bad.length === 0) return null
+                        return (
+                          <div className="space-y-1 mb-2">
+                            {good.map(pair => (
+                              <div key={pair} className="flex items-start gap-1.5 text-xs text-green-700 bg-green-50 rounded-lg px-2 py-1.5">
+                                <span className="shrink-0">🤝</span>
+                                <span><span className="font-medium">{pair}</span> — passen gut zusammen</span>
+                              </div>
+                            ))}
+                            {bad.map(pair => (
+                              <div key={pair} className="flex items-start gap-1.5 text-xs text-red-700 bg-red-50 rounded-lg px-2 py-1.5">
+                                <span className="shrink-0">⚠️</span>
+                                <span><span className="font-medium">{pair}</span> — vertragen sich nicht</span>
+                              </div>
+                            ))}
+                          </div>
+                        )
+                      })()}
+                    </>
                   )}
                   {plants.length > 0 && (
                     assigning === bed.id ? (

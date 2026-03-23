@@ -7,6 +7,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const session = await getServerSession(authOptions)
   if (!session) return new NextResponse("Unauthorized", { status: 401 })
   const body = await req.json()
+  const goodIds: string[] = body.goodNeighborIds ?? []
+  const badIds: string[] = body.badNeighborIds ?? []
   const plant = await prisma.gardenPlant.update({
     where: { id: params.id },
     data: {
@@ -20,6 +22,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       openfarmSlug: body.openfarmSlug,
       openfarmData: body.openfarmData,
       thumbnailUrl: body.thumbnailUrl ?? null,
+      notes: body.notes?.trim() || null,
+      goodNeighbors: { set: goodIds.map(id => ({ id })) },
+      badNeighbors: { set: badIds.map(id => ({ id })) },
+    },
+    include: {
+      goodNeighbors: { select: { id: true, name: true, variety: true } },
+      badNeighbors: { select: { id: true, name: true, variety: true } },
     },
   })
   return NextResponse.json(plant)
