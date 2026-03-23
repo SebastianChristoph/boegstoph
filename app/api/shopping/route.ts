@@ -7,7 +7,7 @@ export async function GET() {
   const session = await getServerSession(authOptions)
   if (!session) return new NextResponse("Unauthorized", { status: 401 })
   const lists = await prisma.shoppingList.findMany({
-    include: { items: { orderBy: { createdAt: "asc" } } },
+    include: { items: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] } },
     orderBy: { createdAt: "desc" },
   })
   return NextResponse.json(lists)
