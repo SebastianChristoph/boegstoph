@@ -292,7 +292,7 @@ export default function PlantsTab() {
             ].map(({ key, label, placeholder }) => (
               <div key={key}>
                 <label className="text-xs text-gray-500 mb-1 block">{label}</label>
-                <input type="number" value={(form as Record<string, string>)[key]}
+                <input type="number" value={(form as unknown as Record<string, string>)[key]}
                   onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
                   placeholder={placeholder}
                   className="w-full border border-gray-300 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400" />
