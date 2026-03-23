@@ -221,7 +221,7 @@ export default function BedsTab() {
                         ))}
                       </div>
                       {(() => {
-                        const bedPlantIds = [...new Set(bedSeasons.map(s => s.plantId))]
+                        const bedPlantIds = bedSeasons.map(s => s.plantId).filter((id, i, arr) => arr.indexOf(id) === i)
                         if (bedPlantIds.length < 2) return null
                         const { good, bad } = getCompatibility(bedPlantIds, plants)
                         if (good.length === 0 && bad.length === 0) return null
