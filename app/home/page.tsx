@@ -5,6 +5,29 @@ import Link from "next/link"
 import CalendarWidget from "@/components/CalendarWidget"
 import UpcomingCalendar from "@/components/UpcomingCalendar"
 
+type LayoutMode = "mobile" | "tablet-portrait" | "tablet-landscape" | "desktop"
+
+function useLayoutMode(): LayoutMode {
+  const [mode, setMode] = useState<LayoutMode>("mobile")
+  useEffect(() => {
+    function detect() {
+      const w = window.innerWidth
+      const h = window.innerHeight
+      if (w < 768) { setMode("mobile"); return }
+      if (w < 1200) { setMode(w > h ? "tablet-landscape" : "tablet-portrait"); return }
+      setMode("desktop")
+    }
+    detect()
+    window.addEventListener("resize", detect)
+    window.addEventListener("orientationchange", detect)
+    return () => {
+      window.removeEventListener("resize", detect)
+      window.removeEventListener("orientationchange", detect)
+    }
+  }, [])
+  return mode
+}
+
 interface Photo {
   id: string
   filename: string
@@ -15,6 +38,8 @@ const INTERVAL_MS = 7000
 const FADE_MS = 800
 
 export default function HomeScreen() {
+  const layoutMode = useLayoutMode()
+  const showFiveDay = layoutMode === "tablet-landscape" || layoutMode === "desktop"
   const [photos, setPhotos] = useState<Photo[]>([])
   const [idx, setIdx] = useState(0)
   const [visible, setVisible] = useState(true)
@@ -99,9 +124,9 @@ export default function HomeScreen() {
           </div>
         )}
 
-        {/* 5-day calendar overlay */}
+        {/* Calendar overlay — 5-day for desktop/tablet-landscape, today for mobile/tablet-portrait */}
         <div className="absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-black/80 via-black/50 to-transparent pt-10 pb-3 px-4">
-          <UpcomingCalendar days={5} />
+          {showFiveDay ? <UpcomingCalendar days={5} /> : <CalendarWidget variant="dark" />}
         </div>
       </div>
 
