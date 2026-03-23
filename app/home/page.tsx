@@ -87,17 +87,27 @@ export default function HomeScreen() {
       {/* ── Photo area ─────────────────────────────────────────── */}
       <div className="relative flex-1 min-h-0">
         {photo ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <div
             key={photo.filename}
-            src={`/api/photos/file/${photo.filename}`}
-            alt=""
-            className="absolute inset-0 w-full h-full object-cover"
-            style={{
-              opacity: visible ? 1 : 0,
-              transition: `opacity ${FADE_MS}ms ease-in-out`,
-            }}
-          />
+            className="absolute inset-0"
+            style={{ opacity: visible ? 1 : 0, transition: `opacity ${FADE_MS}ms ease-in-out` }}
+          >
+            {/* Blurred background fill — covers letterbox bars */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={`/api/photos/file/${photo.filename}`}
+              alt=""
+              className="absolute inset-0 w-full h-full object-cover scale-110"
+              style={{ filter: "blur(24px)", opacity: 0.7 }}
+            />
+            {/* Full photo, never cropped */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={`/api/photos/file/${photo.filename}`}
+              alt=""
+              className="absolute inset-0 w-full h-full object-contain"
+            />
+          </div>
         ) : (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center text-gray-600">
