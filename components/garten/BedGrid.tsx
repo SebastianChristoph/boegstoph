@@ -61,7 +61,7 @@ export default function BedGrid({
               width: 22,
               height: 22,
               borderRadius: 3,
-              backgroundColor: isActive ? (data?.bg ?? "#d1fae5") : "#e5e7eb",
+              backgroundColor: isActive ? (data?.bg ?? "#a0785a") : "#e5e7eb",
               cursor: (editable || (isActive && onCellClick)) ? "pointer" : "default",
               overflow: "hidden",
               flexShrink: 0,
