@@ -31,6 +31,16 @@ export default async function DashboardPage() {
           </div>
         </Link>
       </div>
+      <Link href="/home"
+        className="flex items-center gap-4 bg-gray-900 hover:bg-gray-800 active:scale-95 transition-all text-white rounded-2xl p-5 mb-8 shadow-sm">
+        <img src="/apple-touch-icon.png" alt="" className="w-10 h-10 rounded-xl shrink-0" />
+        <div>
+          <div className="font-semibold">Home-Ansicht</div>
+          <div className="text-sm text-gray-400">Foto-Diashow für das Tablet</div>
+        </div>
+        <span className="ml-auto text-gray-400 text-xl">›</span>
+      </Link>
+
       <div className="space-y-3">
         <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Schnellzugriff</h2>
         <Link href="/shopping" className="flex items-center gap-4 bg-white rounded-2xl p-4 border border-gray-200 shadow-sm">
