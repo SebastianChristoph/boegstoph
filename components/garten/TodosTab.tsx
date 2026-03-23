@@ -41,21 +41,29 @@ export default function TodosTab() {
 
   useEffect(() => { load() }, [load])
 
-  async function toggle(todo: GardenTodo) {
-    const res = await fetch(`/api/garden/todos/${todo.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ done: !todo.done }),
-    })
-    if (res.ok) {
-      const updated = await res.json()
-      setTodos(t => t.map(x => x.id === todo.id ? updated : x))
-    }
+  function todoKey(t: GardenTodo) {
+    return `${t.season?.plant.name ?? ""}|${t.season?.plant.variety ?? ""}|${t.title}|${t.dueDate ?? ""}`
   }
 
-  async function remove(id: string) {
-    await fetch(`/api/garden/todos/${id}`, { method: "DELETE" })
-    setTodos(t => t.filter(x => x.id !== id))
+  async function toggle(todo: GardenTodo) {
+    const key = todoKey(todo)
+    const siblings = todos.filter(t => todoKey(t) === key)
+    const newDone = !todo.done
+    await Promise.all(siblings.map(s =>
+      fetch(`/api/garden/todos/${s.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ done: newDone }),
+      })
+    ))
+    setTodos(t => t.map(x => todoKey(x) === key ? { ...x, done: newDone } : x))
+  }
+
+  async function remove(todo: GardenTodo) {
+    const key = todoKey(todo)
+    const siblings = todos.filter(t => todoKey(t) === key)
+    await Promise.all(siblings.map(s => fetch(`/api/garden/todos/${s.id}`, { method: "DELETE" })))
+    setTodos(t => t.filter(x => todoKey(x) !== key))
   }
 
   async function addTodo() {
@@ -72,8 +80,18 @@ export default function TodosTab() {
     }
   }
 
-  const open = todos.filter(t => !t.done)
-  const done = todos.filter(t => t.done)
+  function dedup(list: GardenTodo[]) {
+    const seen = new Set<string>()
+    return list.filter(t => {
+      const k = todoKey(t)
+      if (seen.has(k)) return false
+      seen.add(k)
+      return true
+    })
+  }
+
+  const open = dedup(todos.filter(t => !t.done))
+  const done = dedup(todos.filter(t => t.done))
   const thisWeek = open.filter(t => isThisWeek(t.dueDate))
 
   const displayed = tab === "week" ? thisWeek : tab === "open" ? open : done
@@ -157,7 +175,7 @@ export default function TodosTab() {
                   )}
                 </div>
               </div>
-              <button onClick={() => remove(todo.id)} className="text-gray-400 hover:text-red-500 text-xs shrink-0">🗑️</button>
+              <button onClick={() => remove(todo)} className="text-gray-400 hover:text-red-500 text-xs shrink-0">🗑️</button>
             </li>
           ))}
         </ul>

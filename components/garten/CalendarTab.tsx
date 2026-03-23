@@ -41,10 +41,15 @@ export default function CalendarTab() {
 
   useEffect(() => { load() }, [load])
 
-  async function removeSeason(id: string) {
-    if (!confirm("Saison entfernen? Todos und Tagebucheinträge werden gelöscht.")) return
-    await fetch(`/api/garden/seasons/${id}`, { method: "DELETE" })
-    setSeasons(s => s.filter(x => x.id !== id))
+  function plantKey(s: Season) {
+    return `${s.plant.name}|${s.plant.variety ?? ""}`
+  }
+
+  async function removePlant(key: string) {
+    if (!confirm("Pflanze aus der Saison entfernen? Todos und Tagebucheinträge werden gelöscht.")) return
+    const toRemove = seasons.filter(s => plantKey(s) === key)
+    await Promise.all(toRemove.map(s => fetch(`/api/garden/seasons/${s.id}`, { method: "DELETE" })))
+    setSeasons(prev => prev.filter(s => plantKey(s) !== key))
   }
 
   async function addDiary(seasonId: string) {
@@ -66,7 +71,7 @@ export default function CalendarTab() {
     setSeasons(s => s.map(x => x.id === seasonId ? { ...x, diary: x.diary.filter(d => d.id !== diaryId) } : x))
   }
 
-  // Build all timeline events
+  // Build all timeline events, deduplicated by plant+type+date
   const allEvents: (TimelineEvent & { isEisheilige?: boolean })[] = []
 
   // Add Eisheilige marker
@@ -81,8 +86,15 @@ export default function CalendarTab() {
     isEisheilige: true,
   })
 
+  const seenEvents = new Set<string>()
   for (const season of seasons) {
-    allEvents.push(...generateTimeline(season))
+    for (const ev of generateTimeline(season)) {
+      const key = `${ev.type}|${ev.plantName}|${ev.variety ?? ""}|${ev.date.toDateString()}`
+      if (!seenEvents.has(key)) {
+        seenEvents.add(key)
+        allEvents.push(ev)
+      }
+    }
   }
 
   allEvents.sort((a, b) => a.date.getTime() - b.date.getTime())
@@ -101,7 +113,7 @@ export default function CalendarTab() {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <p className="text-sm text-gray-500">Saison {CURRENT_YEAR} · {seasons.length} Pflanze{seasons.length !== 1 && "n"}</p>
+        <p className="text-sm text-gray-500">Saison {CURRENT_YEAR} · {new Set(seasons.map(s => `${s.plant.name}|${s.plant.variety ?? ""}`)).size} Pflanze{new Set(seasons.map(s => `${s.plant.name}|${s.plant.variety ?? ""}`)).size !== 1 && "n"}</p>
         <button onClick={() => setSelectedMonth(null)}
           className={`text-xs px-3 py-1 rounded-full transition-colors ${selectedMonth === null ? "bg-primary-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
           Alle
@@ -148,77 +160,90 @@ export default function CalendarTab() {
             </div>
           ))}
 
-          {/* Seasons list with diary */}
-          <div>
-            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">Meine Pflanzen {CURRENT_YEAR}</h3>
-            <ul className="space-y-2">
-              {seasons.map(s => (
-                <li key={s.id} className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
-                  <div className="flex items-center gap-3 px-4 py-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-gray-900 text-sm">
-                        {s.plant.name}{s.plant.variety && <span className="text-gray-400 font-normal ml-1">· {s.plant.variety}</span>}
-                      </div>
-                      {s.bed && <div className="text-xs text-gray-500 mt-0.5">📍 {s.bed.name}</div>}
-                    </div>
-                    <button onClick={() => setExpandedSeason(expandedSeason === s.id ? null : s.id)}
-                      className="text-xs text-gray-400 hover:text-gray-700 px-2">
-                      {s.diary.length > 0 ? `📓 ${s.diary.length}` : "📓"}
-                    </button>
-                    <button onClick={() => removeSeason(s.id)} className="text-gray-400 hover:text-red-500 text-xs">🗑️</button>
-                  </div>
-
-                  {expandedSeason === s.id && (
-                    <div className="border-t border-gray-100 p-4 bg-gray-50">
-                      <h4 className="text-xs font-semibold text-gray-500 mb-2">Tagebuch</h4>
-                      {s.diary.length > 0 && (
-                        <ul className="space-y-2 mb-3">
-                          {s.diary.map(d => (
-                            <li key={d.id} className="flex items-start gap-2 text-sm">
-                              <span>{d.success === true ? "✅" : d.success === false ? "❌" : "📝"}</span>
-                              <span className="flex-1 text-gray-700">{d.note}</span>
-                              <button onClick={() => removeDiary(d.id, s.id)} className="text-gray-400 hover:text-red-500 text-xs shrink-0">🗑️</button>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                      {diarySeasonId === s.id ? (
-                        <div className="space-y-2">
-                          <textarea value={diaryNote} onChange={e => setDiaryNote(e.target.value)}
-                            placeholder="Was hast du beobachtet?" rows={2}
-                            className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 resize-none" />
-                          <div className="flex gap-2 items-center">
-                            <span className="text-xs text-gray-500">Bewertung:</span>
-                            {([null, true, false] as (boolean | null)[]).map(v => (
-                              <button key={String(v)} onClick={() => setDiarySuccess(v)}
-                                className={`text-xs px-2.5 py-1 rounded-full transition-colors ${diarySuccess === v ? "bg-primary-600 text-white" : "bg-gray-100 text-gray-600"}`}>
-                                {v === null ? "Neutral" : v ? "✅ Gut" : "❌ Nicht gut"}
-                              </button>
-                            ))}
-                          </div>
-                          <div className="flex gap-2">
-                            <button onClick={() => addDiary(s.id)} disabled={!diaryNote.trim()}
-                              className="flex-1 bg-primary-600 text-white py-1.5 rounded-xl text-xs font-medium disabled:opacity-40">
-                              Speichern
-                            </button>
-                            <button onClick={() => { setDiarySeasonId(null); setDiaryNote(""); setDiarySuccess(null) }}
-                              className="px-3 py-1.5 rounded-xl text-xs text-gray-500 hover:bg-gray-200">
-                              Abbrechen
-                            </button>
+          {/* Seasons list with diary — deduplicated by plant */}
+          {(() => {
+            const seenKeys = new Set<string>()
+            const uniqueSeasons = seasons.reduce<(Season & { _key: string; _allDiary: GardenDiary[]; _primaryId: string })[]>((acc, s) => {
+              const k = plantKey(s)
+              if (!seenKeys.has(k)) {
+                seenKeys.add(k)
+                const allDiary = seasons.filter(x => plantKey(x) === k).flatMap(x => x.diary)
+                acc.push({ ...s, _key: k, _allDiary: allDiary, _primaryId: s.id })
+              }
+              return acc
+            }, [])
+            return (
+              <div>
+                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">Meine Pflanzen {CURRENT_YEAR}</h3>
+                <ul className="space-y-2">
+                  {uniqueSeasons.map(s => (
+                    <li key={s._key} className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+                      <div className="flex items-center gap-3 px-4 py-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-gray-900 text-sm">
+                            {s.plant.name}{s.plant.variety && <span className="text-gray-400 font-normal ml-1">· {s.plant.variety}</span>}
                           </div>
                         </div>
-                      ) : (
-                        <button onClick={() => setDiarySeasonId(s.id)}
-                          className="w-full border border-dashed border-gray-300 hover:border-primary-400 rounded-xl py-2 text-xs text-gray-500 hover:text-primary-600 transition-colors">
-                          + Tagebucheintrag
+                        <button onClick={() => setExpandedSeason(expandedSeason === s._key ? null : s._key)}
+                          className="text-xs text-gray-400 hover:text-gray-700 px-2">
+                          {s._allDiary.length > 0 ? `📓 ${s._allDiary.length}` : "📓"}
                         </button>
+                        <button onClick={() => removePlant(s._key)} className="text-gray-400 hover:text-red-500 text-xs">🗑️</button>
+                      </div>
+
+                      {expandedSeason === s._key && (
+                        <div className="border-t border-gray-100 p-4 bg-gray-50">
+                          <h4 className="text-xs font-semibold text-gray-500 mb-2">Tagebuch</h4>
+                          {s._allDiary.length > 0 && (
+                            <ul className="space-y-2 mb-3">
+                              {s._allDiary.map(d => (
+                                <li key={d.id} className="flex items-start gap-2 text-sm">
+                                  <span>{d.success === true ? "✅" : d.success === false ? "❌" : "📝"}</span>
+                                  <span className="flex-1 text-gray-700">{d.note}</span>
+                                  <button onClick={() => removeDiary(d.id, s._primaryId)} className="text-gray-400 hover:text-red-500 text-xs shrink-0">🗑️</button>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                          {diarySeasonId === s._key ? (
+                            <div className="space-y-2">
+                              <textarea value={diaryNote} onChange={e => setDiaryNote(e.target.value)}
+                                placeholder="Was hast du beobachtet?" rows={2}
+                                className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 resize-none" />
+                              <div className="flex gap-2 items-center">
+                                <span className="text-xs text-gray-500">Bewertung:</span>
+                                {([null, true, false] as (boolean | null)[]).map(v => (
+                                  <button key={String(v)} onClick={() => setDiarySuccess(v)}
+                                    className={`text-xs px-2.5 py-1 rounded-full transition-colors ${diarySuccess === v ? "bg-primary-600 text-white" : "bg-gray-100 text-gray-600"}`}>
+                                    {v === null ? "Neutral" : v ? "✅ Gut" : "❌ Nicht gut"}
+                                  </button>
+                                ))}
+                              </div>
+                              <div className="flex gap-2">
+                                <button onClick={() => addDiary(s._primaryId)} disabled={!diaryNote.trim()}
+                                  className="flex-1 bg-primary-600 text-white py-1.5 rounded-xl text-xs font-medium disabled:opacity-40">
+                                  Speichern
+                                </button>
+                                <button onClick={() => { setDiarySeasonId(null); setDiaryNote(""); setDiarySuccess(null) }}
+                                  className="px-3 py-1.5 rounded-xl text-xs text-gray-500 hover:bg-gray-200">
+                                  Abbrechen
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button onClick={() => setDiarySeasonId(s._key)}
+                              className="w-full border border-dashed border-gray-300 hover:border-primary-400 rounded-xl py-2 text-xs text-gray-500 hover:text-primary-600 transition-colors">
+                              + Tagebucheintrag
+                            </button>
+                          )}
+                        </div>
                       )}
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )
+          })()}
         </div>
       )}
     </div>
