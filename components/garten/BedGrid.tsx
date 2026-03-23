@@ -13,6 +13,8 @@ interface BedGridProps {
   cellData?: Map<number, BedCellData>
   editable?: boolean
   onToggle?: (index: number) => void
+  onCellClick?: (index: number) => void
+  highlightedCell?: number | null
 }
 
 export function plantBg(index: number): string {
@@ -27,6 +29,8 @@ export default function BedGrid({
   cellData = new Map(),
   editable = false,
   onToggle,
+  onCellClick,
+  highlightedCell,
 }: BedGridProps) {
   const activeSet = new Set(activeCells)
 
@@ -41,20 +45,30 @@ export default function BedGrid({
       {Array.from({ length: cols * rows }, (_, i) => {
         const isActive = activeSet.has(i)
         const data = cellData.get(i)
+        const isHighlighted = highlightedCell === i
+
+        const handleClick = () => {
+          if (editable) { onToggle?.(i); return }
+          if (isActive) onCellClick?.(i)
+        }
+
         return (
           <div
             key={i}
-            onClick={() => editable && onToggle?.(i)}
+            onClick={handleClick}
             title={data?.label}
             style={{
               width: 22,
               height: 22,
               borderRadius: 3,
               backgroundColor: isActive ? (data?.bg ?? "#d1fae5") : "#e5e7eb",
-              cursor: editable ? "pointer" : "default",
+              cursor: (editable || (isActive && onCellClick)) ? "pointer" : "default",
               overflow: "hidden",
               flexShrink: 0,
               opacity: isActive ? 1 : 0.4,
+              boxShadow: isHighlighted ? "0 0 0 2px #4a88c2" : undefined,
+              zIndex: isHighlighted ? 1 : undefined,
+              position: "relative",
             }}
           >
             {data?.thumbnailUrl && isActive && (

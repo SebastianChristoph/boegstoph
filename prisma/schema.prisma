@@ -97,8 +97,9 @@ model GardenBed {
   size      String?
   gridCols  Int            @default(10)
   gridRows  Int            @default(8)
-  gridCells String?        // JSON: "[0,1,2,...]" active cell indices; null = full rectangle
-  cellSize  Int            @default(20) // cm per cell
+  gridCells        String?  // JSON: "[0,1,2,...]" active cell indices; null = full rectangle
+  cellSize         Int      @default(20) // cm per cell
+  cellAssignments  String?  // JSON: { "2026": { "cellIndex": "plantId" } }
   createdAt DateTime       @default(now())
   seasons   GardenSeason[]
 }

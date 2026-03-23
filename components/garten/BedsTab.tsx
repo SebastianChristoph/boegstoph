@@ -11,6 +11,7 @@ interface GardenBed {
   gridRows: number
   gridCells: string | null
   cellSize: number
+  cellAssignments: string | null // JSON: { "2026": { [cellIndex: string]: plantId } }
 }
 
 interface GardenPlant {
@@ -55,22 +56,31 @@ function parseGridCells(gridCells: string | null, cols: number, rows: number): n
   try { return JSON.parse(gridCells) } catch { return Array.from({ length: cols * rows }, (_, i) => i) }
 }
 
-function buildCellData(activeCells: number[], bedSeasons: GardenSeason[]): Map<number, BedCellData> {
+function parseCellAssignments(cellAssignments: string | null, year: number): Record<string, string> {
+  if (!cellAssignments) return {}
+  try {
+    const all = JSON.parse(cellAssignments)
+    return all[year.toString()] ?? {}
+  } catch { return {} }
+}
+
+function buildCellDataFromAssignments(
+  assignments: Record<string, string>,
+  bedSeasons: GardenSeason[],
+  uniquePlantIds: string[]
+): Map<number, BedCellData> {
   const map = new Map<number, BedCellData>()
-  if (activeCells.length === 0 || bedSeasons.length === 0) return map
-  const uniquePlantIds = bedSeasons.map(s => s.plantId).filter((id, i, arr) => arr.indexOf(id) === i)
-  const n = uniquePlantIds.length
-  const cellsPerPlant = Math.max(1, Math.floor(activeCells.length / n))
-  uniquePlantIds.forEach((plantId, pIdx) => {
-    const season = bedSeasons.find(s => s.plantId === plantId)!
-    const bg = plantBg(pIdx)
-    const start = pIdx * cellsPerPlant
-    const end = pIdx === n - 1 ? activeCells.length : Math.min(start + cellsPerPlant, activeCells.length)
-    for (let i = start; i < end; i++) {
-      if (activeCells[i] !== undefined) {
-        map.set(activeCells[i], { bg, thumbnailUrl: season.plant.thumbnailUrl, label: plantLabel(season.plant) })
-      }
-    }
+  Object.entries(assignments).forEach(([cellIndexStr, plantId]) => {
+    const cellIndex = parseInt(cellIndexStr)
+    const pIdx = uniquePlantIds.indexOf(plantId)
+    if (pIdx === -1) return
+    const season = bedSeasons.find(s => s.plantId === plantId)
+    if (!season) return
+    map.set(cellIndex, {
+      bg: plantBg(pIdx),
+      thumbnailUrl: season.plant.thumbnailUrl,
+      label: plantLabel(season.plant),
+    })
   })
   return map
 }
@@ -192,6 +202,7 @@ export default function BedsTab() {
   const [editGridCells, setEditGridCells] = useState<number[]>([])
 
   const [assigning, setAssigning] = useState<string | null>(null)
+  const [selectingCell, setSelectingCell] = useState<{ bedId: string; cellIndex: number } | null>(null)
 
   const load = useCallback(async () => {
     const [bedsRes, seasonsRes, plantsRes, histRes] = await Promise.all([
@@ -285,6 +296,42 @@ export default function BedsTab() {
     setEditGridCells(Array.from({ length: editGridCols * rows }, (_, i) => i))
   }
 
+  async function saveCellAssignments(bedId: string, allAssignments: Record<string, Record<string, string>>) {
+    const res = await fetch(`/api/garden/beds/${bedId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cellAssignments: JSON.stringify(allAssignments) }),
+    })
+    if (res.ok) {
+      const updated = await res.json()
+      setBeds(b => b.map(x => x.id === bedId ? updated : x))
+      setSelectingCell(null)
+    }
+  }
+
+  function getCellAllAssignments(bed: GardenBed): Record<string, Record<string, string>> {
+    try { return bed.cellAssignments ? JSON.parse(bed.cellAssignments) : {} } catch { return {} }
+  }
+
+  async function assignCell(bedId: string, cellIndex: number, plantId: string) {
+    const bed = beds.find(b => b.id === bedId)
+    if (!bed) return
+    const all = getCellAllAssignments(bed)
+    const yearKey = CURRENT_YEAR.toString()
+    if (!all[yearKey]) all[yearKey] = {}
+    all[yearKey][cellIndex.toString()] = plantId
+    await saveCellAssignments(bedId, all)
+  }
+
+  async function clearCell(bedId: string, cellIndex: number) {
+    const bed = beds.find(b => b.id === bedId)
+    if (!bed) return
+    const all = getCellAllAssignments(bed)
+    const yearKey = CURRENT_YEAR.toString()
+    if (all[yearKey]) delete all[yearKey][cellIndex.toString()]
+    await saveCellAssignments(bedId, all)
+  }
+
   async function removeBed(id: string) {
     if (!confirm("Beet löschen?")) return
     await fetch(`/api/garden/beds/${id}`, { method: "DELETE" })
@@ -320,8 +367,25 @@ export default function BedsTab() {
   }
 
   async function removeFromBed(seasonId: string) {
+    const season = seasons.find(s => s.id === seasonId)
     const res = await fetch(`/api/garden/seasons/${seasonId}`, { method: "DELETE" })
-    if (res.ok) setSeasons(s => s.filter(x => x.id !== seasonId))
+    if (res.ok) {
+      setSeasons(s => s.filter(x => x.id !== seasonId))
+      // Clear cell assignments for this plant in this bed
+      if (season?.bedId) {
+        const bed = beds.find(b => b.id === season.bedId)
+        if (bed) {
+          const all = getCellAllAssignments(bed)
+          const yearKey = CURRENT_YEAR.toString()
+          if (all[yearKey]) {
+            Object.keys(all[yearKey]).forEach(k => {
+              if (all[yearKey][k] === season.plantId) delete all[yearKey][k]
+            })
+            await saveCellAssignments(season.bedId, all)
+          }
+        }
+      }
+    }
   }
 
   return (
@@ -387,8 +451,9 @@ export default function BedsTab() {
           {beds.map(bed => {
             const bedSeasons = seasons.filter(s => s.bedId === bed.id)
             const activeCells = parseGridCells(bed.gridCells, bed.gridCols, bed.gridRows)
-            const cellData = buildCellData(activeCells, bedSeasons)
             const uniquePlantIds = bedSeasons.map(s => s.plantId).filter((id, i, arr) => arr.indexOf(id) === i)
+            const assignments = parseCellAssignments(bed.cellAssignments, CURRENT_YEAR)
+            const cellData = buildCellDataFromAssignments(assignments, bedSeasons, uniquePlantIds)
 
             return (
               <div key={bed.id} className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
@@ -470,8 +535,65 @@ export default function BedsTab() {
                           rows={bed.gridRows}
                           activeCells={activeCells}
                           cellData={cellData}
+                          highlightedCell={selectingCell?.bedId === bed.id ? selectingCell.cellIndex : null}
+                          onCellClick={i => {
+                            if (selectingCell?.bedId === bed.id && selectingCell.cellIndex === i) {
+                              setSelectingCell(null)
+                            } else {
+                              setSelectingCell({ bedId: bed.id, cellIndex: i })
+                            }
+                          }}
                         />
                       </div>
+
+                      {/* Cell plant picker */}
+                      {selectingCell?.bedId === bed.id && (
+                        <div className="mt-2 p-2 bg-gray-50 rounded-lg border border-gray-200">
+                          {uniquePlantIds.length === 0 ? (
+                            <p className="text-xs text-gray-400">Erst Pflanzen dem Beet zuweisen.</p>
+                          ) : (
+                            <>
+                              <p className="text-xs text-gray-500 mb-1.5">Pflanze wählen:</p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {uniquePlantIds.map((plantId, pIdx) => {
+                                  const season = bedSeasons.find(s => s.plantId === plantId)!
+                                  const isAssigned = assignments[selectingCell.cellIndex.toString()] === plantId
+                                  return (
+                                    <button
+                                      key={plantId}
+                                      onClick={() => assignCell(bed.id, selectingCell.cellIndex, plantId)}
+                                      className="flex items-center gap-1 text-xs px-2 py-1 rounded-full border transition-colors"
+                                      style={{
+                                        backgroundColor: isAssigned ? plantBg(pIdx) : plantBg(pIdx) + "44",
+                                        borderColor: plantBg(pIdx),
+                                        fontWeight: isAssigned ? 600 : undefined,
+                                      }}
+                                    >
+                                      {season.plant.thumbnailUrl && (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img src={season.plant.thumbnailUrl} alt="" className="w-4 h-4 rounded object-cover shrink-0" />
+                                      )}
+                                      {plantLabel(season.plant)}
+                                    </button>
+                                  )
+                                })}
+                                {assignments[selectingCell.cellIndex.toString()] && (
+                                  <button
+                                    onClick={() => clearCell(bed.id, selectingCell.cellIndex)}
+                                    className="text-xs text-red-500 px-2 py-1 rounded-full border border-red-200 bg-red-50"
+                                  >
+                                    ✕ Leeren
+                                  </button>
+                                )}
+                                <button onClick={() => setSelectingCell(null)} className="text-xs text-gray-400 px-2 py-1">
+                                  Abbrechen
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )}
+
                       {/* Legend */}
                       {uniquePlantIds.length > 0 && (
                         <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1.5">
@@ -485,6 +607,9 @@ export default function BedsTab() {
                             )
                           })}
                         </div>
+                      )}
+                      {uniquePlantIds.length === 0 && (
+                        <p className="text-xs text-gray-400 mt-1">Pflanzen zuweisen, dann Zellen anklicken zum Platzieren.</p>
                       )}
                       <button
                         onClick={() => openGridEdit(bed)}
