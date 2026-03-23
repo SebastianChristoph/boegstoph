@@ -5,14 +5,16 @@ import PlantsTab from "@/components/garten/PlantsTab"
 import CalendarTab from "@/components/garten/CalendarTab"
 import TodosTab from "@/components/garten/TodosTab"
 import BedsTab from "@/components/garten/BedsTab"
+import NotesTab from "@/components/garten/NotesTab"
 
-type Tab = "pflanzen" | "kalender" | "todos" | "beete"
+type Tab = "pflanzen" | "kalender" | "todos" | "beete" | "notizen"
 
 const TABS: { id: Tab; label: string; emoji: string }[] = [
   { id: "pflanzen", label: "Pflanzen", emoji: "🌱" },
   { id: "kalender", label: "Kalender", emoji: "📅" },
   { id: "todos", label: "Todos", emoji: "✅" },
   { id: "beete", label: "Beete", emoji: "🪴" },
+  { id: "notizen", label: "Notizen", emoji: "📝" },
 ]
 
 export default function GartenPage() {
@@ -40,6 +42,7 @@ export default function GartenPage() {
       {tab === "kalender" && <CalendarTab />}
       {tab === "todos" && <TodosTab />}
       {tab === "beete" && <BedsTab />}
+      {tab === "notizen" && <NotesTab />}
     </div>
   )
 }
