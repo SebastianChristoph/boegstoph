@@ -30,6 +30,8 @@ data/
 *.pem
 /tmp
 ical.txt
+garten.md
+*.md.local
 
 # prisma
 prisma/dev.db
