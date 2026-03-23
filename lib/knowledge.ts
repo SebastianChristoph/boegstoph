@@ -5,6 +5,7 @@ export const CATEGORIES = [
   { id: "haushalt", label: "Haushalt", icon: "🧹" },
   { id: "hygiene", label: "Hygiene", icon: "🧴" },
   { id: "non-food", label: "Non-Food", icon: "📦" },
+  { id: "sonstiges", label: "Sonstiges", icon: "🗂️" },
 ] as const
 
 export type CategoryId = (typeof CATEGORIES)[number]["id"]
