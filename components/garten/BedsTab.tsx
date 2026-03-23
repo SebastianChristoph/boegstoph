@@ -18,6 +18,7 @@ interface GardenSeason {
   id: string
   year: number
   bedId: string | null
+  plantId: string
   plant: { name: string; variety: string | null }
 }
 
@@ -82,16 +83,31 @@ export default function BedsTab() {
   }
 
   async function assignPlantToBed(plantId: string, bedId: string) {
-    // Always create a new season for this plant+bed combination
-    const res = await fetch("/api/garden/seasons", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ plantId, year: CURRENT_YEAR, bedId }),
-    })
-    if (res.ok) {
-      const newSeason = await res.json()
-      setSeasons(s => [...s, newSeason])
-      setAssigning(null)
+    // Reuse existing unassigned season if available, otherwise create new
+    const unassigned = seasons.find(s => s.plantId === plantId && s.bedId === null)
+    let res: Response
+    if (unassigned) {
+      res = await fetch(`/api/garden/seasons/${unassigned.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bedId }),
+      })
+      if (res.ok) {
+        const updated = await res.json()
+        setSeasons(s => s.map(x => x.id === unassigned.id ? updated : x))
+        setAssigning(null)
+      }
+    } else {
+      res = await fetch("/api/garden/seasons", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plantId, year: CURRENT_YEAR, bedId }),
+      })
+      if (res.ok) {
+        const newSeason = await res.json()
+        setSeasons(s => [...s, newSeason])
+        setAssigning(null)
+      }
     }
   }
 
