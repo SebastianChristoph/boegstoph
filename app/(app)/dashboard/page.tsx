@@ -55,19 +55,6 @@ export default async function DashboardPage() {
         <span className="ml-auto text-blue-200 text-xl">›</span>
       </Link>
 
-      <div className="space-y-3">
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Schnellzugriff</h2>
-        <Link href="/shopping" className="flex items-center gap-4 bg-white rounded-2xl p-4 border border-gray-200 shadow-sm">
-          <span className="text-2xl">🛒</span>
-          <div><div className="font-medium text-gray-900">Einkaufslisten</div><div className="text-sm text-gray-500">{lists.length} Liste{lists.length !== 1 && "n"}</div></div>
-          <span className="ml-auto text-gray-400">›</span>
-        </Link>
-        <Link href="/tasks" className="flex items-center gap-4 bg-white rounded-2xl p-4 border border-gray-200 shadow-sm">
-          <span className="text-2xl">📋</span>
-          <div><div className="font-medium text-gray-900">Aufgaben</div><div className="text-sm text-gray-500">Haushalt, Garten & mehr</div></div>
-          <span className="ml-auto text-gray-400">›</span>
-        </Link>
-      </div>
     </div>
   )
 }

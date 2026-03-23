@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import CalendarWidget from "@/components/CalendarWidget"
+import UpcomingCalendar from "@/components/UpcomingCalendar"
 
 interface Photo {
   id: string
@@ -86,7 +87,7 @@ export default function HomeScreen() {
 
         {/* dot indicators */}
         {photos.length > 1 && (
-          <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+          <div className="absolute bottom-[88px] left-1/2 -translate-x-1/2 flex gap-2 z-10">
             {photos.map((_, i) => (
               <button
                 key={i}
@@ -97,6 +98,11 @@ export default function HomeScreen() {
             ))}
           </div>
         )}
+
+        {/* 5-day calendar overlay */}
+        <div className="absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-black/80 via-black/50 to-transparent pt-10 pb-3 px-4">
+          <UpcomingCalendar days={5} />
+        </div>
       </div>
 
       {/* ── Side panel (tablet / desktop) ──────────────────────── */}
