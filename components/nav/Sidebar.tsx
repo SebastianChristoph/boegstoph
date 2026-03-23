@@ -15,7 +15,7 @@ export default function Sidebar() {
     <aside className="hidden md:flex flex-col w-60 bg-white border-r border-gray-200 shrink-0">
       <div className="p-6 border-b border-gray-100">
         <div className="text-2xl mb-1">🏠</div>
-        <h1 className="font-bold text-lg text-gray-900">Familien Hub</h1>
+        <h1 className="font-bold text-lg text-gray-900">Die Bögstophs</h1>
       </div>
       <nav className="flex-1 p-3 space-y-1">
         {links.map((l) => {
