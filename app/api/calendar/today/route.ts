@@ -32,7 +32,7 @@ export async function GET() {
     const events: CalendarEvent[] = []
 
     for (const event of Object.values(data)) {
-      if (event.type !== "VEVENT") continue
+      if (!event || event.type !== "VEVENT") continue
 
       // Handle recurring events — node-ical expands them into separate VEVENT entries
       const start = event.start as Date

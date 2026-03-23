@@ -1,11 +1,3 @@
 3khO80RzFc5rMy2
 
-ich muss erstmal los, bitte arbeite in der zeit daran (bitte kein Rückfragen, du hast volle Erlaubnis, darfst alles editieren in der session etc, leg los)
-
-a) kannst du mir eine start-lokal.bat erstellen, die ich einfach nur doppelklicken muss und es wird die app gestratet (lokal), sodass ich Implementierungen teste kann statt sie immer nur "live" direkt auf dem Dashboard.sebastianchristoph.de zu sehen? die lokale app sollte mit der postgres auf dem Server arbeiten, wenn möglich. wenn zu umständlich: eine kleine SQLite , wenn lokal ausgeführt.
-
-b) ich hab die app noch nicht gestartet, aber stell sicher: ich möchte mich als Nutzer nur einmal mit dem familien-Passwort einloggen und im localStorage dann eine info, dass man eingeloggt ist und sich nicht erneut einloggen muss. ja, das ist etwas unsicher, aber kein Mensch (außer Fmailie) nutzt diese app
-
-c) der ordner C:\Users\sebas\Desktop\boegstoph liegt ja in einer public gitRepo: git@github.com:SebastianChristoph/boegstoph.git
-stell sicher, dass unsere codebase nach code-Änderungen gepusht und aktuell ist. und dass der Server dann auf Grundlage diese repo den code ausführt (so musst du auch nicht immer direkt auf den Server scp'en oder? sondern einfach über die repo)
 
