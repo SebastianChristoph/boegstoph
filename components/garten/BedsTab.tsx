@@ -244,11 +244,18 @@ export default function BedsTab() {
                       })()}
                     </>
                   )}
-                  {plants.length > 0 && (
-                    assigning === bed.id ? (
+                  {(() => {
+                    // Only plants already added to current season, not yet in THIS bed
+                    const inThisBed = bedSeasons.map(s => s.plantId)
+                    const seasonPlantIds = seasons.map(s => s.plantId).filter((id, i, arr) => arr.indexOf(id) === i)
+                    const available = plants.filter(p => seasonPlantIds.includes(p.id) && !inThisBed.includes(p.id))
+                    if (available.length === 0 && assigning !== bed.id) return (
+                      <p className="text-xs text-gray-400 mt-1">Keine weiteren Saisonpflanzen verfügbar — zuerst im Tab Pflanzen zur Saison hinzufügen</p>
+                    )
+                    return assigning === bed.id ? (
                       <div className="space-y-1">
                         <p className="text-xs text-gray-500 mb-1">Pflanze wählen:</p>
-                        {plants.map(p => (
+                        {available.map(p => (
                           <button key={p.id} onClick={() => assignPlantToBed(p.id, bed.id)}
                             className="flex items-center gap-2 w-full text-left text-xs bg-white border border-gray-200 hover:border-primary-400 rounded-lg px-3 py-1.5">
                             {p.thumbnailUrl ? (
@@ -264,7 +271,7 @@ export default function BedsTab() {
                       <button onClick={() => setAssigning(bed.id)}
                         className="text-xs text-primary-600 hover:underline">+ Pflanze zuweisen</button>
                     )
-                  )}
+                  })()}
                 </div>
               </div>
             )
