@@ -6,7 +6,7 @@ const links = [
   { href: "/dashboard", label: "Start", icon: "🏠" },
   { href: "/shopping", label: "Einkaufslisten", icon: "🛒" },
   { href: "/tasks", label: "Aufgaben", icon: "✅" },
-  { href: "/fotos", label: "Fotos", icon: "📷" },
+  { href: "/einstellungen", label: "Einstellungen", icon: "⚙️" },
 ]
 export default function Sidebar() {
   const pathname = usePathname()
