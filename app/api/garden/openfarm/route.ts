@@ -21,14 +21,22 @@ interface GrowstuffCrop {
 
 async function fetchGrowstuff(query: string) {
   const slug = query.toLowerCase().trim().replace(/\s+/g, "-")
+  const base = `https://www.growstuff.org/crops/${encodeURIComponent(slug)}`
   try {
-    const res = await fetch(`https://www.growstuff.org/crops/${encodeURIComponent(slug)}.json`, {
-      headers: { "Accept": "application/json" },
-      signal: AbortSignal.timeout(5000),
-    })
-    if (!res.ok) return null
-    const g: GrowstuffCrop = await res.json()
+    const [cropRes, photosRes] = await Promise.all([
+      fetch(`${base}.json`, { headers: { "Accept": "application/json" }, signal: AbortSignal.timeout(5000) }),
+      fetch(`${base}/photos.json`, { headers: { "Accept": "application/json" }, signal: AbortSignal.timeout(5000) }),
+    ])
+    if (!cropRes.ok) return null
+    const g: GrowstuffCrop = await cropRes.json()
     if (!g?.name) return null
+
+    let thumbnail_url: string | null = null
+    if (photosRes.ok) {
+      const photos = await photosRes.json()
+      thumbnail_url = photos?.query?.[0]?.thumbnail_url ?? null
+    }
+
     return {
       id: String(g.id),
       attributes: {
@@ -40,7 +48,7 @@ async function fetchGrowstuff(query: string) {
         spread: g.spread,
         row_spacing: g.row_spacing,
         height: g.height,
-        // multiply so PlantsTab's existing ÷15 formula gives back the correct days
+        thumbnail_url,
         growing_degree_days: g.median_days_to_first_harvest
           ? g.median_days_to_first_harvest * 15
           : null,

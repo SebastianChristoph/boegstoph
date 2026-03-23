@@ -28,6 +28,7 @@ interface OpenfarmCrop {
     height: number | null
     growing_degree_days: number | null
     harvest_days?: number | null
+    thumbnail_url?: string | null
   }
 }
 
@@ -182,9 +183,15 @@ export default function PlantsTab() {
             {openfarmResults.map(c => (
               <li key={c.id}>
                 <button onClick={() => applyOpenfarm(c)}
-                  className="w-full text-left px-3 py-1.5 rounded-lg bg-white border border-gray-200 hover:border-primary-400 text-sm">
-                  <span className="font-medium">{c.attributes.name}</span>
-                  {c.attributes.sun_requirements && <span className="text-gray-400 text-xs ml-2">{c.attributes.sun_requirements}</span>}
+                  className="w-full text-left px-3 py-1.5 rounded-lg bg-white border border-gray-200 hover:border-primary-400 text-sm flex items-center gap-2">
+                  {c.attributes.thumbnail_url && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={c.attributes.thumbnail_url} alt="" className="w-8 h-8 rounded object-cover shrink-0" />
+                  )}
+                  <div className="min-w-0">
+                    <div className="font-medium">{c.attributes.name}</div>
+                    {c.attributes.sun_requirements && <div className="text-gray-400 text-xs">{c.attributes.sun_requirements}</div>}
+                  </div>
                 </button>
               </li>
             ))}
