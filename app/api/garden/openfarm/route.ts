@@ -87,9 +87,7 @@ export async function GET(req: NextRequest) {
     const withPhotos = await Promise.all(
       localResults.map(async plant => {
         const thumbnail_url = await fetchGrowstuffPhoto(plant.attributes.slug)
-        return thumbnail_url
-          ? { ...plant, attributes: { ...plant.attributes, thumbnail_url } }
-          : plant
+        return { ...plant, source: "local", attributes: { ...plant.attributes, thumbnail_url: thumbnail_url ?? null } }
       })
     )
     return NextResponse.json({ data: withPhotos })
@@ -97,5 +95,5 @@ export async function GET(req: NextRequest) {
 
   // 2. Fallback: Growstuff slug lookup (English queries / uncommon plants)
   const growstuffResult = await fetchGrowstuff(q)
-  return NextResponse.json({ data: growstuffResult ? [growstuffResult] : [] })
+  return NextResponse.json({ data: growstuffResult ? [{ ...growstuffResult, source: "growstuff" }] : [] })
 }

@@ -23,6 +23,7 @@ interface GardenPlant {
 
 interface OpenfarmCrop {
   id: string
+  source?: "local" | "growstuff"
   attributes: {
     name: string
     slug: string
@@ -232,8 +233,13 @@ export default function PlantsTab() {
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={c.attributes.thumbnail_url} alt="" className="w-8 h-8 rounded object-cover shrink-0" />
                   )}
-                  <div className="min-w-0">
-                    <div className="font-medium">{c.attributes.name}</div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-medium">{c.attributes.name}</span>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${c.source === "local" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}`}>
+                        {c.source === "local" ? "Lokale DB" : "Growstuff"}
+                      </span>
+                    </div>
                     {c.attributes.sun_requirements && <div className="text-gray-400 text-xs">{c.attributes.sun_requirements}</div>}
                   </div>
                 </button>
