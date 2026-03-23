@@ -163,8 +163,16 @@ export default function PlantsTab() {
             onKeyDown={e => e.key === "Enter" && searchOpenfarm()}
             placeholder="Pflanze suchen…" className="flex-1 border border-gray-300 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400" />
           <button onClick={searchOpenfarm} disabled={searching}
-            className="bg-primary-600 text-white px-3 py-1.5 rounded-xl text-sm disabled:opacity-40">
-            {searching ? "…" : "Suche"}
+            className="bg-primary-600 text-white px-3 py-1.5 rounded-xl text-sm disabled:opacity-60 flex items-center gap-1.5 min-w-[70px] justify-center">
+            {searching ? (
+              <>
+                <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                </svg>
+                Suche…
+              </>
+            ) : "Suche"}
           </button>
         </div>
         {openfarmResults.length > 0 && (

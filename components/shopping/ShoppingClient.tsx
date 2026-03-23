@@ -185,6 +185,17 @@ export default function ShoppingClient({ initialLists }: { initialLists: ListWit
     return () => es.close()
   }, [reload])
 
+  // Reload on tab focus + periodic polling
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === "visible") reload() }
+    document.addEventListener("visibilitychange", onVisible)
+    const interval = setInterval(reload, 30000)
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible)
+      clearInterval(interval)
+    }
+  }, [reload])
+
   // sync itemMap when active list changes
   useEffect(() => {
     const list = lists.find((l) => l.id === activeListId)
@@ -490,7 +501,7 @@ export default function ShoppingClient({ initialLists }: { initialLists: ListWit
 
       {/* New list modal */}
       {showNewList && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-end md:items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-start md:items-center justify-center p-4 pt-8 md:pt-4">
           <form onSubmit={createList} className="bg-white rounded-2xl p-6 w-full max-w-sm space-y-4">
             <h2 className="font-bold text-lg">Neue Liste</h2>
             <input value={newListName} onChange={(e) => setNewListName(e.target.value)}

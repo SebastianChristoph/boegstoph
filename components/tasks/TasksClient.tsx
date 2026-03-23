@@ -200,6 +200,17 @@ export default function TasksClient({ initialTasks }: { initialTasks: TaskWithOr
     return () => es.close()
   }, [reload])
 
+  // Reload on tab focus + periodic polling
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === "visible") reload() }
+    document.addEventListener("visibilitychange", onVisible)
+    const interval = setInterval(reload, 30000)
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible)
+      clearInterval(interval)
+    }
+  }, [reload])
+
   const existingCats = sortedCategories(taskMap).filter((c) => c !== UNCATEGORIZED)
 
   async function createTask(e: React.FormEvent) {
@@ -379,7 +390,7 @@ export default function TasksClient({ initialTasks }: { initialTasks: TaskWithOr
 
       {/* New task modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-end md:items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-start md:items-center justify-center p-4 pt-8 md:pt-4">
           <form onSubmit={createTask} className="bg-white rounded-2xl p-6 w-full max-w-sm space-y-4">
             <h2 className="font-bold text-lg">Neue Aufgabe</h2>
 
