@@ -1,23 +1,17 @@
 import { prisma } from "@/lib/prisma"
 import Link from "next/link"
 import CalendarWidget from "@/components/CalendarWidget"
+import GardenTodosCard from "@/components/GardenTodosCard"
 
 export default async function DashboardPage() {
   const today = new Date()
-  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
-  const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999)
 
-  const [lists, tasks, gardenTodosRaw] = await Promise.all([
+  const [lists, tasks] = await Promise.all([
     prisma.shoppingList.findMany({ include: { items: true } }),
     prisma.task.findMany({ where: { completed: false } }),
-    prisma.gardenTodo.findMany({
-      where: { done: false, dueDate: { gte: monthStart, lte: monthEnd } },
-      select: { title: true },
-    }),
   ])
   const uncheckedItems = lists.reduce((sum, l) => sum + l.items.filter((i) => !i.checked).length, 0)
   const overdueTasks = tasks.filter((t) => t.dueDate && new Date(t.dueDate) < new Date()).length
-  const gardenTasksThisMonth = new Set(gardenTodosRaw.map(t => t.title)).size
   const hour = today.getHours()
   const greeting = hour < 12 ? "Guten Morgen" : hour < 18 ? "Guten Tag" : "Guten Abend"
   return (
@@ -42,11 +36,7 @@ export default async function DashboardPage() {
             {overdueTasks > 0 && <span className="ml-1 text-red-500">({overdueTasks} überfällig)</span>}
           </div>
         </Link>
-        <Link href="/garten" className="bg-white rounded-2xl p-4 border border-gray-200 shadow-sm active:scale-95 transition-transform">
-          <div className="text-3xl mb-2">🌱</div>
-          <div className="text-2xl font-bold text-gray-900">{gardenTasksThisMonth}</div>
-          <div className="text-sm text-gray-500 mt-0.5">Garten diesen Monat</div>
-        </Link>
+        <GardenTodosCard />
       </div>
 
       {/* Google Calendar — heute */}

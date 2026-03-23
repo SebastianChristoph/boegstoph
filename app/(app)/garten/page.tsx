@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useSearchParams } from "next/navigation"
 import PlantsTab from "@/components/garten/PlantsTab"
 import CalendarTab from "@/components/garten/CalendarTab"
 import TodosTab from "@/components/garten/TodosTab"
@@ -18,7 +19,9 @@ const TABS: { id: Tab; label: string; emoji: string }[] = [
 ]
 
 export default function GartenPage() {
-  const [tab, setTab] = useState<Tab>("pflanzen")
+  const searchParams = useSearchParams()
+  const initialTab = (searchParams.get("tab") as Tab | null) ?? "pflanzen"
+  const [tab, setTab] = useState<Tab>(initialTab)
 
   return (
     <div className="p-4 md:p-8 max-w-2xl mx-auto">
