@@ -8,6 +8,12 @@ interface GardenBed {
   size: string | null
 }
 
+interface GardenPlant {
+  id: string
+  name: string
+  variety: string | null
+}
+
 interface GardenSeason {
   id: string
   year: number
@@ -20,6 +26,7 @@ const CURRENT_YEAR = new Date().getFullYear()
 export default function BedsTab() {
   const [beds, setBeds] = useState<GardenBed[]>([])
   const [seasons, setSeasons] = useState<GardenSeason[]>([])
+  const [plants, setPlants] = useState<GardenPlant[]>([])
   const [showAdd, setShowAdd] = useState(false)
   const [newName, setNewName] = useState("")
   const [newSize, setNewSize] = useState("")
@@ -29,12 +36,14 @@ export default function BedsTab() {
   const [assigning, setAssigning] = useState<string | null>(null) // bedId being assigned to
 
   const load = useCallback(async () => {
-    const [bedsRes, seasonsRes] = await Promise.all([
+    const [bedsRes, seasonsRes, plantsRes] = await Promise.all([
       fetch("/api/garden/beds"),
       fetch(`/api/garden/seasons?year=${CURRENT_YEAR}`),
+      fetch("/api/garden/plants"),
     ])
     if (bedsRes.ok) setBeds(await bedsRes.json())
     if (seasonsRes.ok) setSeasons(await seasonsRes.json())
+    if (plantsRes.ok) setPlants(await plantsRes.json())
   }, [])
 
   useEffect(() => { load() }, [load])
@@ -72,19 +81,24 @@ export default function BedsTab() {
     setBeds(b => b.filter(x => x.id !== id))
   }
 
-  async function assignToBed(seasonId: string, bedId: string | null) {
-    const res = await fetch(`/api/garden/seasons/${seasonId}`, {
-      method: "PATCH",
+  async function assignPlantToBed(plantId: string, bedId: string) {
+    // Always create a new season for this plant+bed combination
+    const res = await fetch("/api/garden/seasons", {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ bedId }),
+      body: JSON.stringify({ plantId, year: CURRENT_YEAR, bedId }),
     })
     if (res.ok) {
-      setSeasons(s => s.map(x => x.id === seasonId ? { ...x, bedId } : x))
+      const newSeason = await res.json()
+      setSeasons(s => [...s, newSeason])
       setAssigning(null)
     }
   }
 
-  const unassigned = seasons.filter(s => !s.bedId)
+  async function removeFromBed(seasonId: string) {
+    const res = await fetch(`/api/garden/seasons/${seasonId}`, { method: "DELETE" })
+    if (res.ok) setSeasons(s => s.filter(x => x.id !== seasonId))
+  }
 
   return (
     <div>
@@ -158,19 +172,19 @@ export default function BedsTab() {
                       {bedSeasons.map(s => (
                         <span key={s.id} className="flex items-center gap-1 text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
                           🌱 {s.plant.name}{s.plant.variety ? ` (${s.plant.variety})` : ""}
-                          <button onClick={() => assignToBed(s.id, null)} className="text-green-600 hover:text-red-500 ml-0.5">✕</button>
+                          <button onClick={() => removeFromBed(s.id)} className="text-green-600 hover:text-red-500 ml-0.5">✕</button>
                         </span>
                       ))}
                     </div>
                   )}
-                  {unassigned.length > 0 && (
+                  {plants.length > 0 && (
                     assigning === bed.id ? (
                       <div className="space-y-1">
                         <p className="text-xs text-gray-500 mb-1">Pflanze wählen:</p>
-                        {unassigned.map(s => (
-                          <button key={s.id} onClick={() => assignToBed(s.id, bed.id)}
+                        {plants.map(p => (
+                          <button key={p.id} onClick={() => assignPlantToBed(p.id, bed.id)}
                             className="block w-full text-left text-xs bg-white border border-gray-200 hover:border-primary-400 rounded-lg px-3 py-1.5">
-                            🌱 {s.plant.name}{s.plant.variety ? ` (${s.plant.variety})` : ""}
+                            🌱 {p.name}{p.variety ? ` (${p.variety})` : ""}
                           </button>
                         ))}
                         <button onClick={() => setAssigning(null)} className="text-xs text-gray-400 mt-1">Abbrechen</button>
