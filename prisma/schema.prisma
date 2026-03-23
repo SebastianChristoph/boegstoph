@@ -81,10 +81,14 @@ model GardenPlant {
   notes          String?
   createdAt      DateTime       @default(now())
   seasons        GardenSeason[]
-  goodNeighbors  GardenPlant[]  @relation("GoodNeighbors")
-  goodNeighborOf GardenPlant[]  @relation("GoodNeighbors")
-  badNeighbors   GardenPlant[]  @relation("BadNeighbors")
-  badNeighborOf  GardenPlant[]  @relation("BadNeighbors")
+}
+
+model GardenNeighborRule {
+  id    String @id @default(cuid())
+  nameA String
+  nameB String
+  type  String // "good" | "bad"
+  @@unique([nameA, nameB, type])
 }
 
 model GardenBed {

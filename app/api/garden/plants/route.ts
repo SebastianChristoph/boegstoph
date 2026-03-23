@@ -5,39 +5,74 @@ import { prisma } from "@/lib/prisma"
 
 export const dynamic = "force-dynamic"
 
-const NEIGHBOR_SELECT = { select: { id: true, name: true, variety: true } }
-
 type NeighborRef = { id: string; name: string; variety: string | null }
 function dedup(arr: NeighborRef[]): NeighborRef[] {
   const seen = new Set<string>()
   return arr.filter(n => { if (seen.has(n.id)) return false; seen.add(n.id); return true })
 }
 
-export async function GET() {
-  const plants = await prisma.gardenPlant.findMany({
-    orderBy: { name: "asc" },
-    include: {
-      goodNeighbors: NEIGHBOR_SELECT,
-      goodNeighborOf: NEIGHBOR_SELECT,
-      badNeighbors: NEIGHBOR_SELECT,
-      badNeighborOf: NEIGHBOR_SELECT,
-    },
+async function buildPlantList() {
+  const [plants, rules] = await Promise.all([
+    prisma.gardenPlant.findMany({ orderBy: { name: "asc" } }),
+    prisma.gardenNeighborRule.findMany(),
+  ])
+  const nameToPlant = new Map(plants.map(p => [p.name, p]))
+
+  return plants.map(plant => {
+    const good: NeighborRef[] = []
+    const bad: NeighborRef[] = []
+    const ownGoodIds: string[] = []
+    const ownBadIds: string[] = []
+    for (const rule of rules) {
+      const isOwn = rule.nameA === plant.name
+      const otherName = isOwn ? rule.nameB : rule.nameB === plant.name ? rule.nameA : null
+      if (!otherName) continue
+      const other = nameToPlant.get(otherName)
+      if (!other) continue
+      const ref = { id: other.id, name: other.name, variety: other.variety }
+      if (rule.type === "good") {
+        good.push(ref)
+        if (isOwn) ownGoodIds.push(other.id)
+      } else {
+        bad.push(ref)
+        if (isOwn) ownBadIds.push(other.id)
+      }
+    }
+    return {
+      ...plant,
+      goodNeighbors: dedup(good),
+      badNeighbors: dedup(bad),
+      ownGoodNeighborIds: ownGoodIds,
+      ownBadNeighborIds: ownBadIds,
+    }
   })
-  // Merge both relation directions so each plant sees all relevant neighbors
-  const result = plants.map(({ goodNeighborOf, badNeighborOf, ...p }) => ({
-    ...p,
-    goodNeighbors: dedup([...p.goodNeighbors, ...goodNeighborOf]),
-    badNeighbors: dedup([...p.badNeighbors, ...badNeighborOf]),
-  }))
-  return NextResponse.json(result)
+}
+
+export async function GET() {
+  return NextResponse.json(await buildPlantList())
+}
+
+async function syncRules(plantName: string, goodNeighborIds: string[], badNeighborIds: string[]) {
+  const [goodPlants, badPlants] = await Promise.all([
+    prisma.gardenPlant.findMany({ where: { id: { in: goodNeighborIds } }, select: { name: true } }),
+    prisma.gardenPlant.findMany({ where: { id: { in: badNeighborIds } }, select: { name: true } }),
+  ])
+  const goodNames = goodPlants.map(p => p.name)
+  const badNames = badPlants.map(p => p.name)
+
+  // Replace all rules where this plant is the source (nameA)
+  await prisma.gardenNeighborRule.deleteMany({ where: { nameA: plantName } })
+  const newRules = [
+    ...goodNames.map(n => ({ nameA: plantName, nameB: n, type: "good" })),
+    ...badNames.map(n => ({ nameA: plantName, nameB: n, type: "bad" })),
+  ]
+  if (newRules.length) await prisma.gardenNeighborRule.createMany({ data: newRules, skipDuplicates: true })
 }
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return new NextResponse("Unauthorized", { status: 401 })
   const body = await req.json()
-  const goodIds: string[] = body.goodNeighborIds ?? []
-  const badIds: string[] = body.badNeighborIds ?? []
   const plant = await prisma.gardenPlant.create({
     data: {
       name: body.name.trim(),
@@ -51,10 +86,8 @@ export async function POST(req: NextRequest) {
       openfarmData: body.openfarmData || null,
       thumbnailUrl: body.thumbnailUrl || null,
       notes: body.notes?.trim() || null,
-      goodNeighbors: goodIds.length ? { connect: goodIds.map(id => ({ id })) } : undefined,
-      badNeighbors: badIds.length ? { connect: badIds.map(id => ({ id })) } : undefined,
     },
-    include: { goodNeighbors: NEIGHBOR_SELECT, badNeighbors: NEIGHBOR_SELECT },
   })
+  await syncRules(plant.name, body.goodNeighborIds ?? [], body.badNeighborIds ?? [])
   return NextResponse.json(plant, { status: 201 })
 }

@@ -19,6 +19,8 @@ interface GardenPlant {
   notes: string | null
   goodNeighbors: NeighborRef[]
   badNeighbors: NeighborRef[]
+  ownGoodNeighborIds: string[]
+  ownBadNeighborIds: string[]
 }
 
 interface OpenfarmCrop {
@@ -96,8 +98,8 @@ export default function PlantsTab() {
       harvestDays: p.harvestDays?.toString() ?? "",
       thumbnailUrl: p.thumbnailUrl ?? "",
       notes: p.notes ?? "",
-      goodNeighborIds: p.goodNeighbors.map(n => n.id),
-      badNeighborIds: p.badNeighbors.map(n => n.id),
+      goodNeighborIds: p.ownGoodNeighborIds,
+      badNeighborIds: p.ownBadNeighborIds,
     })
     setEditId(p.id); setShowAdd(false); setOpenfarmResults([]); setOpenfarmQuery("")
     setShowTimeline(false); setShowNeighbors(false)
