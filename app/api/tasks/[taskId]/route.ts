@@ -11,7 +11,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { taskId: st
   const body = await req.json()
   const task = await prisma.task.update({ where: { id: params.taskId }, data: body })
   broadcast("tasks")
-  if (body.done === true) {
+  if (body.completed === true) {
     sendPushToAll("✅ Aufgabe erledigt", task.title).catch(() => {})
   }
   return NextResponse.json(task)
