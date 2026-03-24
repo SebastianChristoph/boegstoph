@@ -20,13 +20,13 @@ export default function DashboardPage() {
         <DashboardStats />
       </div>
 
-      {/* Google Calendar — heute */}
+      {/* Google Calendar — heute & morgen */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 mb-8">
         <div className="flex items-center gap-2 mb-3">
           <span className="text-lg">📅</span>
-          <h2 className="text-sm font-semibold text-gray-700">Heute</h2>
+          <h2 className="text-sm font-semibold text-gray-700">Termine</h2>
         </div>
-        <CalendarWidget />
+        <CalendarWidget days={2} />
       </div>
 
       <Connect4Widget />
