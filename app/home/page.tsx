@@ -158,14 +158,16 @@ export default function HomeScreen() {
         {/* Divider */}
         <div className="border-t border-gray-800 shrink-0" />
 
-        {/* Calendar widget */}
-        <div className="flex-1 min-h-0">
-          <div className="flex items-center gap-1.5 mb-3">
-            <span className="text-sm">📅</span>
-            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Heute</span>
+        {/* Calendar widget — nur in portrait, in landscape ist die 5-Tage-Vorschau schon im Bild */}
+        {!showFiveDay && (
+          <div className="flex-1 min-h-0">
+            <div className="flex items-center gap-1.5 mb-3">
+              <span className="text-sm">📅</span>
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Heute</span>
+            </div>
+            <CalendarWidget variant="dark" />
           </div>
-          <CalendarWidget variant="dark" />
-        </div>
+        )}
       </aside>
 
       {/* ── Bottom bar (mobile) ─────────────────────────────────── */}
