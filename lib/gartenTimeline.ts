@@ -1,4 +1,4 @@
-export type EventType = "SOWING_INDOOR" | "TRANSPLANT" | "SOWING_DIRECT"
+export type EventType = "SOWING_INDOOR" | "TRANSPLANT" | "SOWING_DIRECT" | "PLANTING"
 
 export interface TimelineEvent {
   type: EventType
@@ -25,7 +25,8 @@ export interface SeasonForTimeline {
 const EVENT_META: Record<EventType, { label: string; emoji: string }> = {
   SOWING_INDOOR: { label: "Vorzucht starten", emoji: "🌱" },
   TRANSPLANT:    { label: "Auspflanzen (Eisheilige)", emoji: "🌿" },
-  SOWING_DIRECT: { label: "Direktaussaat", emoji: "🌱" },
+  SOWING_DIRECT: { label: "Direktaussaat", emoji: "🪴" },
+  PLANTING:      { label: "Jungpflanze einsetzen", emoji: "🛒" },
 }
 
 export function eisheiligeDate(year: number): Date {
@@ -38,6 +39,12 @@ export function generateTimeline(season: SeasonForTimeline): TimelineEvent[] {
   const method = season.method
   const events: TimelineEvent[] = []
   const base = { plantName: season.plant.name, variety: season.plant.variety ?? undefined, seasonId: season.id }
+
+  if (method === "BUY") {
+    const plantingDate = vorzuchtMonat ? eisheiligeDate(year) : aussaatMonat ? new Date(year, aussaatMonat - 1, 15) : eisheiligeDate(year)
+    events.push({ type: "PLANTING", ...EVENT_META.PLANTING, date: plantingDate, ...base })
+    return events
+  }
 
   const doIndoor = method === "INDOOR" || (!method && !!vorzuchtMonat)
   const doDirect = method === "DIRECT" || (!method && !!aussaatMonat)

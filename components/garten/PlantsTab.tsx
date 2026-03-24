@@ -61,7 +61,7 @@ const emptyForm = () => ({
 
 export default function PlantsTab() {
   const [plants, setPlants] = useState<GardenPlant[]>([])
-  const [seasonPlantIds, setSeasonPlantIds] = useState<Set<string>>(new Set())
+  const [seasonPlantMethods, setSeasonPlantMethods] = useState<Record<string, string | null>>({})
   const [showAdd, setShowAdd] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm())
@@ -80,8 +80,10 @@ export default function PlantsTab() {
     ])
     if (plantsRes.ok) setPlants(await plantsRes.json())
     if (seasonsRes.ok) {
-      const seasons: { plantId: string }[] = await seasonsRes.json()
-      setSeasonPlantIds(new Set(seasons.map(s => s.plantId)))
+      const seasons: { plantId: string; method: string | null }[] = await seasonsRes.json()
+      const map: Record<string, string | null> = {}
+      seasons.forEach(s => { map[s.plantId] = s.method })
+      setSeasonPlantMethods(map)
     }
   }, [])
 
@@ -163,16 +165,10 @@ export default function PlantsTab() {
   }
 
   function handleAddToSeasonClick(plant: GardenPlant) {
-    const hasIndoor = !!plant.vorzuchtMonat
-    const hasDirect = !!plant.aussaatMonat
-    if (hasIndoor && hasDirect) {
-      setMethodPickPlantId(plant.id)
-    } else {
-      addToSeason(plant.id, hasIndoor ? "INDOOR" : "DIRECT")
-    }
+    setMethodPickPlantId(plant.id)
   }
 
-  async function addToSeason(plantId: string, method: "INDOOR" | "DIRECT") {
+  async function addToSeason(plantId: string, method: "INDOOR" | "DIRECT" | "BUY") {
     setMethodPickPlantId(null)
     setAddingToSeason(plantId)
     const res = await fetch("/api/garden/seasons", {
@@ -182,7 +178,7 @@ export default function PlantsTab() {
     })
     setAddingToSeason(null)
     if (res.ok) {
-      setSeasonPlantIds(prev => new Set([...Array.from(prev), plantId]))
+      setSeasonPlantMethods(prev => ({ ...prev, [plantId]: method }))
     }
   }
 
@@ -401,8 +397,10 @@ export default function PlantsTab() {
                     <div className="flex-1 min-w-0">
                       <div className="font-medium text-gray-900 text-sm flex items-center gap-1.5 flex-wrap">
                         {plant.name}{plant.variety && <span className="text-gray-400 font-normal">· {plant.variety}</span>}
-                        {seasonPlantIds.has(plant.id)
-                          ? <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">{CURRENT_YEAR} ✓</span>
+                        {plant.id in seasonPlantMethods
+                          ? <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-medium">
+                              {CURRENT_YEAR} {seasonPlantMethods[plant.id] === "BUY" ? "🛒" : seasonPlantMethods[plant.id] === "INDOOR" ? "🌱" : "🪴"}
+                            </span>
                           : <span className="text-[10px] bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded-full">nicht in Saison</span>
                         }
                       </div>
@@ -415,7 +413,7 @@ export default function PlantsTab() {
                         {plant.badNeighbors.length > 0 && <span className="text-red-500">🚫 {plant.badNeighbors.length}</span>}
                       </div>
                     </div>
-                    {!seasonPlantIds.has(plant.id) && (
+                    {!(plant.id in seasonPlantMethods) && (
                       <div className="relative shrink-0">
                         <button
                           onClick={e => { e.stopPropagation(); handleAddToSeasonClick(plant) }}
@@ -425,16 +423,24 @@ export default function PlantsTab() {
                           {addingToSeason === plant.id ? "…" : "＋"}
                         </button>
                         {methodPickPlantId === plant.id && (
-                          <div className="absolute right-0 top-7 z-50 bg-white border border-gray-200 rounded-xl shadow-lg p-2 flex flex-col gap-1 min-w-[160px]"
+                          <div className="absolute right-0 top-7 z-50 bg-white border border-gray-200 rounded-xl shadow-lg p-2 flex flex-col gap-1 min-w-[170px]"
                             onClick={e => e.stopPropagation()}>
                             <p className="text-[10px] text-gray-400 px-2 pb-1">Wie anbauen?</p>
-                            <button onClick={() => addToSeason(plant.id, "INDOOR")}
-                              className="text-left px-3 py-1.5 rounded-lg text-xs hover:bg-green-50 text-gray-700">
-                              🌱 Als Vorzucht
-                            </button>
-                            <button onClick={() => addToSeason(plant.id, "DIRECT")}
-                              className="text-left px-3 py-1.5 rounded-lg text-xs hover:bg-green-50 text-gray-700">
-                              🪴 Als Direktaussaat
+                            {plant.vorzuchtMonat && (
+                              <button onClick={() => addToSeason(plant.id, "INDOOR")}
+                                className="text-left px-3 py-1.5 rounded-lg text-xs hover:bg-green-50 text-gray-700">
+                                🌱 Als Vorzucht
+                              </button>
+                            )}
+                            {plant.aussaatMonat && (
+                              <button onClick={() => addToSeason(plant.id, "DIRECT")}
+                                className="text-left px-3 py-1.5 rounded-lg text-xs hover:bg-green-50 text-gray-700">
+                                🪴 Als Direktaussaat
+                              </button>
+                            )}
+                            <button onClick={() => addToSeason(plant.id, "BUY")}
+                              className="text-left px-3 py-1.5 rounded-lg text-xs hover:bg-blue-50 text-gray-700">
+                              🛒 Als Jungpflanze kaufen
                             </button>
                             <button onClick={e => { e.stopPropagation(); setMethodPickPlantId(null) }}
                               className="text-left px-3 py-1.5 rounded-lg text-xs text-gray-400 hover:bg-gray-50">
@@ -484,9 +490,9 @@ export default function PlantsTab() {
                           )}
                         </div>
                       )}
-                      {seasonPlantIds.has(plant.id) && (
+                      {plant.id in seasonPlantMethods && (
                         <div className="text-xs text-green-700 bg-green-50 rounded-xl py-1.5 text-center font-medium">
-                          ✓ In Saison {CURRENT_YEAR}
+                          {seasonPlantMethods[plant.id] === "BUY" ? "🛒 Als Jungpflanze in Saison " : seasonPlantMethods[plant.id] === "INDOOR" ? "🌱 Als Vorzucht in Saison " : "🪴 Als Direktaussaat in Saison "}{CURRENT_YEAR}
                         </div>
                       )}
                     </div>
