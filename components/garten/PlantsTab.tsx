@@ -8,11 +8,11 @@ interface GardenPlant {
   id: string
   name: string
   variety: string | null
-  sowingMethod: string
-  weeksIndoor: number | null
-  weeksToPike: number | null
-  daysToMaturity: number | null
-  harvestDays: number | null
+  vorzuchtMonat: number | null
+  aussaatMonat: number | null
+  sunRequirements: string | null
+  waterRequirements: string | null
+  rowSpacing: number | null
   openfarmSlug: string | null
   openfarmData: unknown
   thumbnailUrl: string | null
@@ -43,15 +43,15 @@ interface OpenfarmCrop {
 
 const CURRENT_YEAR = new Date().getFullYear()
 
-const METHOD_LABELS: Record<string, string> = {
-  INDOOR: "Voranzucht",
-  DIRECT: "Direktaussaat",
-  BOTH: "Beides",
-}
+const MONTH_LABELS = ["", "Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"]
+
+const SUN_LABELS: Record<string, string> = { Vollsonne: "☀️ Vollsonne", Halbschatten: "🌤 Halbschatten", Schatten: "🌑 Schatten" }
+const WATER_LABELS: Record<string, string> = { niedrig: "💧 niedrig", mittel: "💧💧 mittel", hoch: "💧💧💧 hoch" }
 
 const emptyForm = () => ({
-  name: "", variety: "", sowingMethod: "INDOOR",
-  weeksIndoor: "", weeksToPike: "", daysToMaturity: "", harvestDays: "",
+  name: "", variety: "",
+  vorzuchtMonat: "", aussaatMonat: "",
+  sunRequirements: "", waterRequirements: "", rowSpacing: "",
   thumbnailUrl: "", notes: "",
   goodNeighborIds: [] as string[],
   badNeighborIds: [] as string[],
@@ -68,7 +68,6 @@ export default function PlantsTab() {
   const [searching, setSearching] = useState(false)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [addingToSeason, setAddingToSeason] = useState<string | null>(null)
-  const [showTimeline, setShowTimeline] = useState(false)
   const [showNeighbors, setShowNeighbors] = useState(false)
 
   const load = useCallback(async () => {
@@ -87,22 +86,23 @@ export default function PlantsTab() {
 
   function openAdd() {
     setForm(emptyForm()); setOpenfarmResults([]); setOpenfarmQuery("")
-    setShowAdd(true); setEditId(null); setShowTimeline(false); setShowNeighbors(false)
+    setShowAdd(true); setEditId(null); setShowNeighbors(false)
   }
   function openEdit(p: GardenPlant) {
     setForm({
-      name: p.name, variety: p.variety ?? "", sowingMethod: p.sowingMethod,
-      weeksIndoor: p.weeksIndoor?.toString() ?? "",
-      weeksToPike: p.weeksToPike?.toString() ?? "",
-      daysToMaturity: p.daysToMaturity?.toString() ?? "",
-      harvestDays: p.harvestDays?.toString() ?? "",
+      name: p.name, variety: p.variety ?? "",
+      vorzuchtMonat: p.vorzuchtMonat?.toString() ?? "",
+      aussaatMonat: p.aussaatMonat?.toString() ?? "",
+      sunRequirements: p.sunRequirements ?? "",
+      waterRequirements: p.waterRequirements ?? "",
+      rowSpacing: p.rowSpacing?.toString() ?? "",
       thumbnailUrl: p.thumbnailUrl ?? "",
       notes: p.notes ?? "",
       goodNeighborIds: p.ownGoodNeighborIds,
       badNeighborIds: p.ownBadNeighborIds,
     })
     setEditId(p.id); setShowAdd(false); setOpenfarmResults([]); setOpenfarmQuery("")
-    setShowTimeline(false); setShowNeighbors(false)
+    setShowNeighbors(false)
   }
 
   async function searchOpenfarm() {
@@ -121,13 +121,9 @@ export default function PlantsTab() {
     setForm(f => ({
       ...f,
       name: f.name || a.name,
-      daysToMaturity: a.growing_degree_days ? Math.round(a.growing_degree_days / 15).toString() : f.daysToMaturity,
-      harvestDays: a.harvest_days ? a.harvest_days.toString() : f.harvestDays,
-      sowingMethod: a.sowing_method?.toLowerCase().includes("direct") ? "DIRECT" : f.sowingMethod,
       thumbnailUrl: a.thumbnail_url ?? f.thumbnailUrl,
     }))
     setOpenfarmResults([])
-    setShowTimeline(true)
   }
 
   function toggleNeighbor(id: string, type: "good" | "bad") {
@@ -193,16 +189,48 @@ export default function PlantsTab() {
             placeholder="z.B. Cherry" className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400" />
         </div>
       </div>
-      <div>
-        <label className="text-xs text-gray-500 mb-1 block">Anzuchtmethode</label>
-        <div className="flex gap-2">
-          {(["INDOOR", "DIRECT", "BOTH"] as const).map(m => (
-            <button key={m} onClick={() => setForm(f => ({ ...f, sowingMethod: m }))}
-              className={`flex-1 py-1.5 rounded-xl text-xs font-medium transition-colors ${form.sowingMethod === m ? "bg-primary-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
-              {METHOD_LABELS[m]}
-            </button>
-          ))}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="text-xs text-gray-500 mb-1 block">Vorzucht-Monat</label>
+          <select value={form.vorzuchtMonat} onChange={e => setForm(f => ({ ...f, vorzuchtMonat: e.target.value }))}
+            className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white">
+            <option value="">—</option>
+            {MONTH_LABELS.slice(1).map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
+          </select>
         </div>
+        <div>
+          <label className="text-xs text-gray-500 mb-1 block">Aussaat-Monat</label>
+          <select value={form.aussaatMonat} onChange={e => setForm(f => ({ ...f, aussaatMonat: e.target.value }))}
+            className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white">
+            <option value="">—</option>
+            {MONTH_LABELS.slice(1).map((m, i) => <option key={i + 1} value={i + 1}>{m}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="text-xs text-gray-500 mb-1 block">Standort</label>
+          <select value={form.sunRequirements} onChange={e => setForm(f => ({ ...f, sunRequirements: e.target.value }))}
+            className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white">
+            <option value="">—</option>
+            <option value="Vollsonne">☀️ Vollsonne</option>
+            <option value="Halbschatten">🌤 Halbschatten</option>
+            <option value="Schatten">🌑 Schatten</option>
+          </select>
+        </div>
+        <div>
+          <label className="text-xs text-gray-500 mb-1 block">Bewässerung</label>
+          <select value={form.waterRequirements} onChange={e => setForm(f => ({ ...f, waterRequirements: e.target.value }))}
+            className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white">
+            <option value="">—</option>
+            <option value="niedrig">💧 niedrig</option>
+            <option value="mittel">💧💧 mittel</option>
+            <option value="hoch">💧💧💧 hoch</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label className="text-xs text-gray-500 mb-1 block">Reihenabstand (cm)</label>
+        <input type="number" value={form.rowSpacing} onChange={e => setForm(f => ({ ...f, rowSpacing: e.target.value }))}
+          placeholder="z.B. 40" className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400" />
       </div>
 
       {/* Plant search */}
@@ -293,31 +321,6 @@ export default function PlantsTab() {
         </div>
       )}
 
-      {/* Timeline overrides */}
-      <div className="text-sm">
-        <button type="button" onClick={() => setShowTimeline(t => !t)}
-          className="text-xs text-gray-500 select-none flex items-center gap-1">
-          <span>{showTimeline ? "▲" : "▼"}</span> Zeitplan anpassen (optional)
-        </button>
-        {showTimeline && (
-          <div className="grid grid-cols-2 gap-3 mt-2">
-            {[
-              { key: "weeksIndoor", label: "Wochen Voranzucht", placeholder: "Standard: 8" },
-              { key: "weeksToPike", label: "Wochen bis Pikieren", placeholder: "Standard: 4" },
-              { key: "daysToMaturity", label: "Tage bis Ernte", placeholder: "Standard: 60" },
-              { key: "harvestDays", label: "Erntefenster (Tage)", placeholder: "Standard: 30" },
-            ].map(({ key, label, placeholder }) => (
-              <div key={key}>
-                <label className="text-xs text-gray-500 mb-1 block">{label}</label>
-                <input type="number" value={(form as unknown as Record<string, string>)[key]}
-                  onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
-                  placeholder={placeholder}
-                  className="w-full border border-gray-300 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400" />
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
 
       <div className="flex gap-2 pt-1">
         <button onClick={save} disabled={!form.name.trim()}
@@ -379,8 +382,10 @@ export default function PlantsTab() {
                           : <span className="text-[10px] bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded-full">nicht in Saison</span>
                         }
                       </div>
-                      <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-2">
-                        <span>{METHOD_LABELS[plant.sowingMethod]}</span>
+                      <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-2 flex-wrap">
+                        {plant.vorzuchtMonat && <span>🌱 {MONTH_LABELS[plant.vorzuchtMonat]}</span>}
+                        {plant.aussaatMonat && <span>🌱 Aussaat {MONTH_LABELS[plant.aussaatMonat]}</span>}
+                        {plant.sunRequirements && <span>{SUN_LABELS[plant.sunRequirements]}</span>}
                         {plant.goodNeighbors.length > 0 && <span className="text-green-600">🤝 {plant.goodNeighbors.length}</span>}
                         {plant.badNeighbors.length > 0 && <span className="text-red-500">🚫 {plant.badNeighbors.length}</span>}
                       </div>
@@ -396,10 +401,11 @@ export default function PlantsTab() {
                   {expandedId === plant.id && (
                     <div className="border-t border-gray-100 px-4 py-3 bg-gray-50 space-y-3">
                       <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
-                        <div>🌱 Voranzucht: <span className="font-medium">{plant.weeksIndoor ?? 8} Wo. vor Eisheiligen</span></div>
-                        <div>🪴 Pikieren: <span className="font-medium">{plant.weeksToPike ?? 4} Wo. nach Aussaat</span></div>
-                        <div>🥬 Reifezeit: <span className="font-medium">{plant.daysToMaturity ?? 60} Tage</span></div>
-                        <div>📅 Ernte: <span className="font-medium">{plant.harvestDays ?? 30} Tage Fenster</span></div>
+                        {plant.vorzuchtMonat && <div>🌱 Vorzucht: <span className="font-medium">{MONTH_LABELS[plant.vorzuchtMonat]}</span></div>}
+                        {plant.aussaatMonat && <div>🌱 Aussaat: <span className="font-medium">{MONTH_LABELS[plant.aussaatMonat]}</span></div>}
+                        {plant.sunRequirements && <div>{SUN_LABELS[plant.sunRequirements] ?? plant.sunRequirements}</div>}
+                        {plant.waterRequirements && <div>{WATER_LABELS[plant.waterRequirements] ?? plant.waterRequirements}</div>}
+                        {plant.rowSpacing && <div>↔ Reihe: <span className="font-medium">{plant.rowSpacing} cm</span></div>}
                       </div>
                       {plant.notes && (
                         <div className="text-xs text-gray-600 bg-white rounded-lg px-3 py-2 border border-gray-100">

@@ -67,20 +67,20 @@ model BirthdayWish {
 }
 
 model GardenPlant {
-  id             String         @id @default(cuid())
-  name           String
-  variety        String?
-  sowingMethod   String         @default("INDOOR")
-  weeksIndoor    Int?
-  weeksToPike    Int?
-  daysToMaturity Int?
-  harvestDays    Int?
-  openfarmSlug   String?
-  openfarmData   Json?
-  thumbnailUrl   String?
-  notes          String?
-  createdAt      DateTime       @default(now())
-  seasons        GardenSeason[]
+  id               String         @id @default(cuid())
+  name             String
+  variety          String?
+  vorzuchtMonat    Int?           // 1-12
+  aussaatMonat     Int?           // 1-12
+  sunRequirements  String?        // "Vollsonne" | "Halbschatten" | "Schatten"
+  waterRequirements String?       // "niedrig" | "mittel" | "hoch"
+  rowSpacing       Int?           // cm
+  openfarmSlug     String?
+  openfarmData     Json?
+  thumbnailUrl     String?
+  notes            String?
+  createdAt        DateTime       @default(now())
+  seasons          GardenSeason[]
 }
 
 model GardenNeighborRule {
@@ -111,10 +111,6 @@ model GardenSeason {
   plant          GardenPlant   @relation(fields: [plantId], references: [id], onDelete: Cascade)
   bedId          String?
   bed            GardenBed?    @relation(fields: [bedId], references: [id])
-  weeksIndoor    Int?
-  weeksToPike    Int?
-  daysToMaturity Int?
-  harvestDays    Int?
   createdAt      DateTime      @default(now())
   todos          GardenTodo[]
   diary          GardenDiary[]

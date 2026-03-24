@@ -48,10 +48,6 @@ export async function POST(req: NextRequest) {
       plantId,
       year: parseInt(year),
       bedId: bedId || null,
-      weeksIndoor: body.weeksIndoor ? parseInt(body.weeksIndoor) : null,
-      weeksToPike: body.weeksToPike ? parseInt(body.weeksToPike) : null,
-      daysToMaturity: body.daysToMaturity ? parseInt(body.daysToMaturity) : null,
-      harvestDays: body.harvestDays ? parseInt(body.harvestDays) : null,
     },
   })
 
@@ -60,18 +56,11 @@ export async function POST(req: NextRequest) {
     const seasonForTimeline = {
       id: season.id,
       year: season.year,
-      weeksIndoor: season.weeksIndoor,
-      weeksToPike: season.weeksToPike,
-      daysToMaturity: season.daysToMaturity,
-      harvestDays: season.harvestDays,
       plant: {
         name: plant.name,
         variety: plant.variety,
-        sowingMethod: plant.sowingMethod,
-        weeksIndoor: plant.weeksIndoor,
-        weeksToPike: plant.weeksToPike,
-        daysToMaturity: plant.daysToMaturity,
-        harvestDays: plant.harvestDays,
+        vorzuchtMonat: plant.vorzuchtMonat,
+        aussaatMonat: plant.aussaatMonat,
       },
     }
     const todoData = generateTodosFromTimeline(seasonForTimeline)

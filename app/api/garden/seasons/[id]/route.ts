@@ -11,10 +11,6 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     where: { id: params.id },
     data: {
       bedId: body.bedId !== undefined ? body.bedId || null : undefined,
-      weeksIndoor: body.weeksIndoor != null ? parseInt(body.weeksIndoor) : undefined,
-      weeksToPike: body.weeksToPike != null ? parseInt(body.weeksToPike) : undefined,
-      daysToMaturity: body.daysToMaturity != null ? parseInt(body.daysToMaturity) : undefined,
-      harvestDays: body.harvestDays != null ? parseInt(body.harvestDays) : undefined,
     },
     include: { plant: true, bed: true, diary: true },
   })
