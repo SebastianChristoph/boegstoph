@@ -186,7 +186,7 @@ function evaluateBed(
       const parts = Array.from(groups.entries()).map(([req, names]) => `${names.join(", ")} (${req})`)
       issues.push({ key: "water", type: "water_mismatch", message: `Unterschiedlicher Wasserbedarf: ${parts.join(" · ")}`, involvedIds: [] })
     } else if (groups.size === 1) {
-      const [req] = groups.keys()
+      const req = Array.from(groups.keys())[0]
       positives.push(`Gleicher Wasserbedarf (${req})`)
     }
   }
