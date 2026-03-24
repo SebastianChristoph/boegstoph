@@ -68,6 +68,7 @@ export default function PlantsTab() {
   const [searching, setSearching] = useState(false)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [addingToSeason, setAddingToSeason] = useState<string | null>(null)
+  const [methodPickPlantId, setMethodPickPlantId] = useState<string | null>(null)
   const [showNeighbors, setShowNeighbors] = useState(false)
 
   const load = useCallback(async () => {
@@ -158,17 +159,27 @@ export default function PlantsTab() {
     setPlants(p => p.filter(x => x.id !== id))
   }
 
-  async function addToSeason(plantId: string) {
+  function handleAddToSeasonClick(plant: GardenPlant) {
+    const hasIndoor = !!plant.vorzuchtMonat
+    const hasDirect = !!plant.aussaatMonat
+    if (hasIndoor && hasDirect) {
+      setMethodPickPlantId(plant.id)
+    } else {
+      addToSeason(plant.id, hasIndoor ? "INDOOR" : "DIRECT")
+    }
+  }
+
+  async function addToSeason(plantId: string, method: "INDOOR" | "DIRECT") {
+    setMethodPickPlantId(null)
     setAddingToSeason(plantId)
     const res = await fetch("/api/garden/seasons", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ plantId, year: CURRENT_YEAR }),
+      body: JSON.stringify({ plantId, year: CURRENT_YEAR, method }),
     })
     setAddingToSeason(null)
     if (res.ok) {
       setSeasonPlantIds(prev => new Set([...Array.from(prev), plantId]))
-      alert(`Zur Saison ${CURRENT_YEAR} hinzugefügt! Todos wurden automatisch generiert.`)
     }
   }
 
@@ -395,13 +406,33 @@ export default function PlantsTab() {
                       </div>
                     </div>
                     {!seasonPlantIds.has(plant.id) && (
-                      <button
-                        onClick={e => { e.stopPropagation(); addToSeason(plant.id) }}
-                        disabled={addingToSeason === plant.id}
-                        title={`Zur Saison ${CURRENT_YEAR} hinzufügen`}
-                        className="text-green-600 hover:text-green-800 disabled:opacity-40 text-base shrink-0">
-                        {addingToSeason === plant.id ? "…" : "＋"}
-                      </button>
+                      <div className="relative shrink-0">
+                        <button
+                          onClick={e => { e.stopPropagation(); handleAddToSeasonClick(plant) }}
+                          disabled={addingToSeason === plant.id}
+                          title={`Zur Saison ${CURRENT_YEAR} hinzufügen`}
+                          className="text-green-600 hover:text-green-800 disabled:opacity-40 text-base">
+                          {addingToSeason === plant.id ? "…" : "＋"}
+                        </button>
+                        {methodPickPlantId === plant.id && (
+                          <div className="absolute right-0 top-7 z-10 bg-white border border-gray-200 rounded-xl shadow-lg p-2 flex flex-col gap-1 min-w-[160px]"
+                            onClick={e => e.stopPropagation()}>
+                            <p className="text-[10px] text-gray-400 px-2 pb-1">Wie anbauen?</p>
+                            <button onClick={() => addToSeason(plant.id, "INDOOR")}
+                              className="text-left px-3 py-1.5 rounded-lg text-xs hover:bg-green-50 text-gray-700">
+                              🌱 Als Vorzucht
+                            </button>
+                            <button onClick={() => addToSeason(plant.id, "DIRECT")}
+                              className="text-left px-3 py-1.5 rounded-lg text-xs hover:bg-green-50 text-gray-700">
+                              🪴 Als Direktaussaat
+                            </button>
+                            <button onClick={e => { e.stopPropagation(); setMethodPickPlantId(null) }}
+                              className="text-left px-3 py-1.5 rounded-lg text-xs text-gray-400 hover:bg-gray-50">
+                              Abbrechen
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     )}
                     <button onClick={e => { e.stopPropagation(); openEdit(plant) }} className="text-gray-400 hover:text-gray-700 text-xs shrink-0">✏️</button>
                     <button onClick={e => { e.stopPropagation(); remove(plant.id) }} className="text-gray-400 hover:text-red-500 text-xs shrink-0">🗑️</button>

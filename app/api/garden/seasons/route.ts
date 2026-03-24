@@ -48,6 +48,7 @@ export async function POST(req: NextRequest) {
       plantId,
       year: parseInt(year),
       bedId: bedId || null,
+      method: body.method || null,
     },
   })
 
@@ -56,6 +57,7 @@ export async function POST(req: NextRequest) {
     const seasonForTimeline = {
       id: season.id,
       year: season.year,
+      method: season.method,
       plant: {
         name: plant.name,
         variety: plant.variety,

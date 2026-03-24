@@ -111,6 +111,7 @@ model GardenSeason {
   plant          GardenPlant   @relation(fields: [plantId], references: [id], onDelete: Cascade)
   bedId          String?
   bed            GardenBed?    @relation(fields: [bedId], references: [id])
+  method         String?       // "INDOOR" | "DIRECT"
   createdAt      DateTime      @default(now())
   todos          GardenTodo[]
   diary          GardenDiary[]

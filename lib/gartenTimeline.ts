@@ -13,6 +13,7 @@ export interface TimelineEvent {
 export interface SeasonForTimeline {
   id: string
   year: number
+  method: string | null  // "INDOOR" | "DIRECT" | null (null = use whatever plant has)
   plant: {
     name: string
     variety?: string | null
@@ -34,15 +35,19 @@ export function eisheiligeDate(year: number): Date {
 export function generateTimeline(season: SeasonForTimeline): TimelineEvent[] {
   const year = season.year
   const { vorzuchtMonat, aussaatMonat } = season.plant
+  const method = season.method
   const events: TimelineEvent[] = []
   const base = { plantName: season.plant.name, variety: season.plant.variety ?? undefined, seasonId: season.id }
 
-  if (vorzuchtMonat) {
+  const doIndoor = method === "INDOOR" || (!method && !!vorzuchtMonat)
+  const doDirect = method === "DIRECT" || (!method && !!aussaatMonat)
+
+  if (doIndoor && vorzuchtMonat) {
     events.push({ type: "SOWING_INDOOR", ...EVENT_META.SOWING_INDOOR, date: new Date(year, vorzuchtMonat - 1, 1), ...base })
     events.push({ type: "TRANSPLANT", ...EVENT_META.TRANSPLANT, date: eisheiligeDate(year), ...base })
   }
 
-  if (aussaatMonat) {
+  if (doDirect && aussaatMonat) {
     events.push({ type: "SOWING_DIRECT", ...EVENT_META.SOWING_DIRECT, date: new Date(year, aussaatMonat - 1, 1), ...base })
   }
 
