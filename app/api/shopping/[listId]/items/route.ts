@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { broadcast } from "@/lib/sse"
 import { normalize, DEFAULT_CATEGORY } from "@/lib/knowledge"
+import { sendPushToAll } from "@/lib/webpush"
 
 export async function POST(req: NextRequest, { params }: { params: { listId: string } }) {
   const session = await getServerSession(authOptions)
@@ -26,5 +27,6 @@ export async function POST(req: NextRequest, { params }: { params: { listId: str
   }
 
   broadcast("shopping")
+  sendPushToAll("🛒 Einkaufsliste", `${name} wurde hinzugefügt`).catch(() => {})
   return NextResponse.json(item, { status: 201 })
 }

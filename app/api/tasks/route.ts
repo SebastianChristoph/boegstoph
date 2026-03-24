@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { broadcast } from "@/lib/sse"
+import { sendPushToAll } from "@/lib/webpush"
 
 export async function GET() {
   const session = await getServerSession(authOptions)
@@ -27,5 +28,6 @@ export async function POST(req: NextRequest) {
     },
   })
   broadcast("tasks")
+  sendPushToAll("✅ Neue Aufgabe", task.title).catch(() => {})
   return NextResponse.json(task, { status: 201 })
 }
