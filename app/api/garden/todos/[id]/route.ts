@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { sendPushToAll } from "@/lib/webpush"
+import { broadcast } from "@/lib/sse"
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
@@ -17,6 +18,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     },
     include: { season: { include: { plant: true } } },
   })
+  broadcast("garden-todos")
   if (body.done === true) {
     sendPushToAll("✅ Garten-Aufgabe erledigt", todo.title).catch(() => {})
   }
@@ -27,5 +29,6 @@ export async function DELETE(_req: NextRequest, { params }: { params: { id: stri
   const session = await getServerSession(authOptions)
   if (!session) return new NextResponse("Unauthorized", { status: 401 })
   await prisma.gardenTodo.delete({ where: { id: params.id } })
+  broadcast("garden-todos")
   return new NextResponse(null, { status: 204 })
 }

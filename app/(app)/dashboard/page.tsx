@@ -1,20 +1,13 @@
-import { prisma } from "@/lib/prisma"
 import Link from "next/link"
 import CalendarWidget from "@/components/CalendarWidget"
-import GardenTodosCard from "@/components/GardenTodosCard"
+import DashboardStats from "@/components/DashboardStats"
 import Connect4Widget from "@/components/Connect4Widget"
 
-export default async function DashboardPage() {
+export default function DashboardPage() {
   const today = new Date()
-
-  const [lists, tasks] = await Promise.all([
-    prisma.shoppingList.findMany({ include: { items: true } }),
-    prisma.task.findMany({ where: { completed: false } }),
-  ])
-  const uncheckedItems = lists.reduce((sum, l) => sum + l.items.filter((i) => !i.checked).length, 0)
-  const overdueTasks = tasks.filter((t) => t.dueDate && new Date(t.dueDate) < new Date()).length
   const hour = today.getHours()
   const greeting = hour < 12 ? "Guten Morgen" : hour < 18 ? "Guten Tag" : "Guten Abend"
+
   return (
     <div className="p-4 md:p-8 max-w-2xl mx-auto">
       <div className="mb-8">
@@ -22,22 +15,9 @@ export default async function DashboardPage() {
         <p className="text-gray-500 mt-1">{today.toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" })}</p>
       </div>
 
-      {/* Stat cards */}
+      {/* Stat cards — live via SSE */}
       <div className="grid grid-cols-3 gap-3 mb-8">
-        <Link href="/shopping" className="bg-white rounded-2xl p-4 border border-gray-200 shadow-sm active:scale-95 transition-transform">
-          <div className="text-3xl mb-2">🛒</div>
-          <div className="text-2xl font-bold text-gray-900">{uncheckedItems}</div>
-          <div className="text-sm text-gray-500 mt-0.5">Artikel offen</div>
-        </Link>
-        <Link href="/tasks" className="bg-white rounded-2xl p-4 border border-gray-200 shadow-sm active:scale-95 transition-transform">
-          <div className="text-3xl mb-2">✅</div>
-          <div className="text-2xl font-bold text-gray-900">{tasks.length}</div>
-          <div className="text-sm text-gray-500 mt-0.5">
-            Offene Aufgaben
-            {overdueTasks > 0 && <span className="ml-1 text-red-500">({overdueTasks} überfällig)</span>}
-          </div>
-        </Link>
-        <GardenTodosCard />
+        <DashboardStats />
       </div>
 
       {/* Google Calendar — heute */}
