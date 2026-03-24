@@ -21,6 +21,7 @@ interface GardenPlant {
   variety: string | null
   thumbnailUrl: string | null
   sunRequirements: string | null
+  waterRequirements: string | null
   needsSupport: boolean
   goodNeighbors: { id: string }[]
   badNeighbors: { id: string }[]
@@ -120,6 +121,108 @@ function getRotationWarnings(bedId: string, histSeasons: HistSeason[], currentSe
   return warnings
 }
 
+interface BedIssue {
+  key: string
+  type: "bad_neighbor" | "sun_mismatch" | "water_mismatch"
+  message: string
+  involvedIds: string[]
+}
+
+interface BedSuggestion {
+  replaceId: string
+  replaceName: string
+  alternatives: GardenPlant[]
+}
+
+interface BedEvaluation {
+  rating: "good" | "okay" | "bad"
+  positives: string[]
+  issues: BedIssue[]
+  suggestions: BedSuggestion[]
+}
+
+function evaluateBed(
+  bed: GardenBed,
+  bedSeasons: GardenSeason[],
+  allPlants: GardenPlant[],
+  allSeasons: GardenSeason[]
+): BedEvaluation {
+  const bedPlants = bedSeasons.map(s => allPlants.find(p => p.id === s.plantId)).filter(Boolean) as GardenPlant[]
+  const positives: string[] = []
+  const issues: BedIssue[] = []
+
+  // Neighbor compatibility
+  for (let i = 0; i < bedPlants.length; i++) {
+    for (let j = i + 1; j < bedPlants.length; j++) {
+      const a = bedPlants[i], b = bedPlants[j]
+      const isGood = a.goodNeighbors.some(n => n.id === b.id) || b.goodNeighbors.some(n => n.id === a.id)
+      const isBad = a.badNeighbors.some(n => n.id === b.id) || b.badNeighbors.some(n => n.id === a.id)
+      if (isGood) positives.push(`${a.name} & ${b.name} sind gute Nachbarn`)
+      if (isBad) issues.push({ key: `bad-${a.id}-${b.id}`, type: "bad_neighbor", message: `${a.name} & ${b.name} vertragen sich nicht`, involvedIds: [a.id, b.id] })
+    }
+  }
+
+  // Sun requirements
+  if (bed.sunRequirements) {
+    const sunOk = bedPlants.filter(p => p.sunRequirements === bed.sunRequirements)
+    const sunMismatch = bedPlants.filter(p => p.sunRequirements && p.sunRequirements !== bed.sunRequirements)
+    if (sunOk.length === bedPlants.length && bedPlants.length > 0 && bedPlants.every(p => p.sunRequirements))
+      positives.push(`Alle Pflanzen passen zum Standort (${bed.sunRequirements})`)
+    sunMismatch.forEach(p => {
+      issues.push({ key: `sun-${p.id}`, type: "sun_mismatch", message: `${p.name} braucht ${p.sunRequirements}, Beet ist ${bed.sunRequirements}`, involvedIds: [p.id] })
+    })
+  }
+
+  // Water requirements consistency
+  const plantsWithWater = bedPlants.filter(p => p.waterRequirements)
+  if (plantsWithWater.length >= 2) {
+    const groups = new Map<string, string[]>()
+    for (const p of plantsWithWater) {
+      const key = p.waterRequirements!
+      if (!groups.has(key)) groups.set(key, [])
+      groups.get(key)!.push(p.name)
+    }
+    if (groups.size > 1) {
+      const parts = Array.from(groups.entries()).map(([req, names]) => `${names.join(", ")} (${req})`)
+      issues.push({ key: "water", type: "water_mismatch", message: `Unterschiedlicher Wasserbedarf: ${parts.join(" · ")}`, involvedIds: [] })
+    } else if (groups.size === 1) {
+      const [req] = groups.keys()
+      positives.push(`Gleicher Wasserbedarf (${req})`)
+    }
+  }
+
+  // Suggestions: for bad-neighbor issues, find pool alternatives
+  const inBedIds = new Set(bedPlants.map(p => p.id))
+  const seasonPoolIds = new Set(allSeasons.map(s => s.plantId))
+  const poolPlants = allPlants.filter(p => seasonPoolIds.has(p.id) && !inBedIds.has(p.id))
+  const suggestions: BedSuggestion[] = []
+  const alreadySuggested = new Set<string>()
+
+  for (const issue of issues.filter(i => i.type === "bad_neighbor")) {
+    for (const pid of issue.involvedIds) {
+      if (alreadySuggested.has(pid)) continue
+      alreadySuggested.add(pid)
+      const problematic = allPlants.find(p => p.id === pid)
+      if (!problematic) continue
+      const remaining = bedPlants.filter(p => p.id !== pid)
+      const candidates = poolPlants.filter(candidate => {
+        const noBad = remaining.every(rp =>
+          !candidate.badNeighbors.some(n => n.id === rp.id) &&
+          !rp.badNeighbors.some(n => n.id === candidate.id)
+        )
+        const sunOk = !bed.sunRequirements || !candidate.sunRequirements || candidate.sunRequirements === bed.sunRequirements
+        return noBad && sunOk
+      })
+      if (candidates.length > 0) {
+        suggestions.push({ replaceId: pid, replaceName: problematic.name, alternatives: candidates.slice(0, 3) })
+      }
+    }
+  }
+
+  const rating: "good" | "okay" | "bad" = issues.length === 0 ? "good" : issues.length === 1 ? "okay" : "bad"
+  return { rating, positives, issues, suggestions }
+}
+
 function getCompatibility(bedPlantIds: string[], allPlants: GardenPlant[]) {
   const good: string[] = []
   const bad: string[] = []
@@ -208,6 +311,7 @@ export default function BedsTab() {
 
   const [assigning, setAssigning] = useState<string | null>(null)
   const [selectingCell, setSelectingCell] = useState<{ bedId: string; cellIndex: number } | null>(null)
+  const [evalOpen, setEvalOpen] = useState<Set<string>>(new Set())
 
   const load = useCallback(async () => {
     const [bedsRes, seasonsRes, plantsRes, histRes] = await Promise.all([
@@ -740,6 +844,66 @@ export default function BedsTab() {
                             </span>
                           </div>
                         ))}
+                      </div>
+                    )
+                  })()}
+
+                  {/* Beet-Bewertung */}
+                  {bedSeasons.length >= 2 && (() => {
+                    const isOpen = evalOpen.has(bed.id)
+                    const eval_ = isOpen ? evaluateBed(bed, bedSeasons, plants, seasons) : null
+                    const ratingIcon = eval_?.rating === "good" ? "🟢" : eval_?.rating === "okay" ? "🟡" : "🔴"
+                    return (
+                      <div className="mb-2">
+                        <button
+                          onClick={() => setEvalOpen(prev => {
+                            const next = new Set(prev)
+                            if (next.has(bed.id)) next.delete(bed.id)
+                            else next.add(bed.id)
+                            return next
+                          })}
+                          className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-primary-600 transition-colors"
+                        >
+                          <span>📊</span>
+                          <span>Beet-Bewertung</span>
+                          {eval_ && <span>{ratingIcon}</span>}
+                          <span className="text-gray-400">{isOpen ? "▲" : "▼"}</span>
+                        </button>
+                        {isOpen && eval_ && (
+                          <div className="mt-2 space-y-1.5">
+                            <div className={`flex items-center gap-1.5 text-xs font-medium px-2 py-1.5 rounded-lg ${eval_.rating === "good" ? "bg-green-50 text-green-700" : eval_.rating === "okay" ? "bg-yellow-50 text-yellow-700" : "bg-red-50 text-red-700"}`}>
+                              <span>{ratingIcon}</span>
+                              <span>{eval_.rating === "good" ? "Dieses Beet sieht gut aus!" : eval_.rating === "okay" ? "Kleiner Verbesserungsbedarf" : "Mehrere Probleme gefunden"}</span>
+                            </div>
+                            {eval_.positives.map((p, i) => (
+                              <div key={i} className="flex items-start gap-1.5 text-xs text-green-700 bg-green-50 rounded-lg px-2 py-1.5">
+                                <span className="shrink-0">✅</span>
+                                <span>{p}</span>
+                              </div>
+                            ))}
+                            {eval_.issues.map(issue => (
+                              <div key={issue.key} className="flex items-start gap-1.5 text-xs text-red-700 bg-red-50 rounded-lg px-2 py-1.5">
+                                <span className="shrink-0">{issue.type === "bad_neighbor" ? "⚔️" : issue.type === "sun_mismatch" ? "☀️" : "💧"}</span>
+                                <span>{issue.message}</span>
+                              </div>
+                            ))}
+                            {eval_.suggestions.map(s => (
+                              <div key={s.replaceId} className="flex items-start gap-1.5 text-xs text-indigo-700 bg-indigo-50 rounded-lg px-2 py-1.5">
+                                <span className="shrink-0">💡</span>
+                                <span>
+                                  <span className="font-medium">Statt {s.replaceName}</span> passen besser:{" "}
+                                  {s.alternatives.map(a => a.name).join(", ")}
+                                </span>
+                              </div>
+                            ))}
+                            {eval_.issues.length > 0 && eval_.suggestions.length === 0 && (
+                              <div className="flex items-start gap-1.5 text-xs text-gray-500 bg-gray-50 rounded-lg px-2 py-1.5">
+                                <span className="shrink-0">💡</span>
+                                <span>Keine Alternativen aus dem Saison-Pool verfügbar</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )
                   })()}
