@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return new NextResponse("Unauthorized", { status: 401 })
 
-  const { col } = await req.json()
+  const { col, excludeEndpoint } = await req.json()
   if (typeof col !== "number" || col < 0 || col > 6) {
     return new NextResponse("Invalid column", { status: 400 })
   }
@@ -50,13 +50,13 @@ export async function POST(req: NextRequest) {
     const msg = winner === "draw"
       ? `Unentschieden! Neues Spiel: ${next} beginnt.`
       : `${winner} gewinnt! Neues Spiel: ${next} beginnt.`
-    sendPushToAll("🎮 4-Gewinnt", msg).catch(() => {})
+    sendPushToAll("🎮 4-Gewinnt", msg, excludeEndpoint).catch(() => {})
     broadcast("connect4", { type: "win", winner, game: updated, nextGame })
     return NextResponse.json({ game: updated, nextGame })
   }
 
   const next = updated.currentPlayer
-  sendPushToAll("🎮 4-Gewinnt", `${game.currentPlayer} hat gezogen. ${next} ist am Zug!`).catch(() => {})
+  sendPushToAll("🎮 4-Gewinnt", `${game.currentPlayer} hat gezogen. ${next} ist am Zug!`, excludeEndpoint).catch(() => {})
   broadcast("connect4", { type: "move", game: updated })
   return NextResponse.json({ game: updated })
 }

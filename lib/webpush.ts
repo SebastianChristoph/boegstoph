@@ -1,14 +1,16 @@
 import webpush from "web-push"
 import { prisma } from "@/lib/prisma"
 
-export async function sendPushToAll(title: string, body: string) {
+export async function sendPushToAll(title: string, body: string, excludeEndpoint?: string) {
   if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return
   webpush.setVapidDetails(
     "mailto:" + (process.env.VAPID_EMAIL ?? "admin@example.com"),
     process.env.VAPID_PUBLIC_KEY,
     process.env.VAPID_PRIVATE_KEY
   )
-  const subs = await prisma.pushSubscription.findMany()
+  const allSubs = await prisma.pushSubscription.findMany()
+  const subs = excludeEndpoint ? allSubs.filter(s => s.endpoint !== excludeEndpoint) : allSubs
+  if (subs.length === 0) return
   const payload = JSON.stringify({ title, body })
   const dead: string[] = []
 

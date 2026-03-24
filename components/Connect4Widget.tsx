@@ -73,10 +73,16 @@ export default function Connect4Widget() {
   async function dropInCol(col: number) {
     if (!game || game.status !== "active" || dropping || winBanner) return
     setDropping(true)
+    let excludeEndpoint: string | undefined
+    try {
+      const reg = await navigator.serviceWorker.ready
+      const sub = await reg.pushManager.getSubscription()
+      excludeEndpoint = sub?.endpoint
+    } catch { /* push not available */ }
     const res = await fetch("/api/connect4/move", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ col }),
+      body: JSON.stringify({ col, excludeEndpoint }),
     })
     setDropping(false)
     if (res.ok) {

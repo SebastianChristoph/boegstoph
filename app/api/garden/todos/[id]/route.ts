@@ -2,7 +2,6 @@ import { getServerSession } from "next-auth"
 import { NextRequest, NextResponse } from "next/server"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { sendPushToAll } from "@/lib/webpush"
 import { broadcast } from "@/lib/sse"
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
@@ -19,9 +18,6 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     include: { season: { include: { plant: true } } },
   })
   broadcast("garden-todos")
-  if (body.done === true) {
-    sendPushToAll("✅ Garten-Aufgabe erledigt", todo.title).catch(() => {})
-  }
   return NextResponse.json(todo)
 }
 
