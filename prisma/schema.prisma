@@ -75,6 +75,7 @@ model GardenPlant {
   sunRequirements  String?        // "Vollsonne" | "Halbschatten" | "Schatten"
   waterRequirements String?       // "niedrig" | "mittel" | "hoch"
   rowSpacing       Int?           // cm
+  needsSupport     Boolean        @default(false)
   openfarmSlug     String?
   openfarmData     Json?
   thumbnailUrl     String?
@@ -100,6 +101,7 @@ model GardenBed {
   gridCells        String?  // JSON: "[0,1,2,...]" active cell indices; null = full rectangle
   cellSize         Int      @default(20) // cm per cell
   cellAssignments  String?  // JSON: { "2026": { "cellIndex": "plantId" } }
+  sunRequirements  String?  // "Vollsonne" | "Halbschatten" | "Schatten"
   createdAt DateTime       @default(now())
   seasons   GardenSeason[]
 }

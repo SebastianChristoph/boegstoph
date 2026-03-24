@@ -15,6 +15,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (body.gridCells !== undefined) data.gridCells = body.gridCells
   if (body.cellSize !== undefined) data.cellSize = body.cellSize
   if (body.cellAssignments !== undefined) data.cellAssignments = body.cellAssignments
+  if (body.sunRequirements !== undefined) data.sunRequirements = body.sunRequirements || null
   const bed = await prisma.gardenBed.update({ where: { id: params.id }, data })
   return NextResponse.json(bed)
 }

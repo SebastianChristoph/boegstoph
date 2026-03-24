@@ -82,6 +82,7 @@ export async function POST(req: NextRequest) {
       sunRequirements: body.sunRequirements || null,
       waterRequirements: body.waterRequirements || null,
       rowSpacing: body.rowSpacing ? parseInt(body.rowSpacing) : null,
+      needsSupport: body.needsSupport === true,
       openfarmSlug: body.openfarmSlug || null,
       openfarmData: body.openfarmData || null,
       thumbnailUrl: body.thumbnailUrl || null,

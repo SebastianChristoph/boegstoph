@@ -13,6 +13,7 @@ interface GardenPlant {
   sunRequirements: string | null
   waterRequirements: string | null
   rowSpacing: number | null
+  needsSupport: boolean
   openfarmSlug: string | null
   openfarmData: unknown
   thumbnailUrl: string | null
@@ -52,6 +53,7 @@ const emptyForm = () => ({
   name: "", variety: "",
   vorzuchtMonat: "", aussaatMonat: "",
   sunRequirements: "", waterRequirements: "", rowSpacing: "",
+  needsSupport: false,
   thumbnailUrl: "", notes: "",
   goodNeighborIds: [] as string[],
   badNeighborIds: [] as string[],
@@ -97,6 +99,7 @@ export default function PlantsTab() {
       sunRequirements: p.sunRequirements ?? "",
       waterRequirements: p.waterRequirements ?? "",
       rowSpacing: p.rowSpacing?.toString() ?? "",
+      needsSupport: p.needsSupport,
       thumbnailUrl: p.thumbnailUrl ?? "",
       notes: p.notes ?? "",
       goodNeighborIds: p.ownGoodNeighborIds,
@@ -243,6 +246,13 @@ export default function PlantsTab() {
         <input type="number" value={form.rowSpacing} onChange={e => setForm(f => ({ ...f, rowSpacing: e.target.value }))}
           placeholder="z.B. 40" className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400" />
       </div>
+      <label className="flex items-center gap-3 cursor-pointer select-none">
+        <div onClick={() => setForm(f => ({ ...f, needsSupport: !f.needsSupport }))}
+          className={`w-10 h-6 rounded-full transition-colors shrink-0 ${form.needsSupport ? "bg-primary-600" : "bg-gray-200"}`}>
+          <div className={`w-5 h-5 bg-white rounded-full shadow mt-0.5 transition-transform ${form.needsSupport ? "translate-x-4.5" : "translate-x-0.5"}`} />
+        </div>
+        <span className="text-sm text-gray-700">Braucht Rankhilfe / Stütze</span>
+      </label>
 
       {/* Plant search */}
       <div className="border border-gray-200 rounded-xl p-3 bg-gray-50">
@@ -451,6 +461,7 @@ export default function PlantsTab() {
                         {plant.sunRequirements && <div>{SUN_LABELS[plant.sunRequirements] ?? plant.sunRequirements}</div>}
                         {plant.waterRequirements && <div>{WATER_LABELS[plant.waterRequirements] ?? plant.waterRequirements}</div>}
                         {plant.rowSpacing && <div>↔ Reihe: <span className="font-medium">{plant.rowSpacing} cm</span></div>}
+                        {plant.needsSupport && <div>🪢 <span className="font-medium">Braucht Rankhilfe</span></div>}
                       </div>
                       {plant.notes && (
                         <div className="text-xs text-gray-600 bg-white rounded-lg px-3 py-2 border border-gray-100">

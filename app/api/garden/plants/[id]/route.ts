@@ -34,6 +34,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       sunRequirements: body.sunRequirements !== undefined ? body.sunRequirements || null : undefined,
       waterRequirements: body.waterRequirements !== undefined ? body.waterRequirements || null : undefined,
       rowSpacing: body.rowSpacing != null ? (body.rowSpacing ? parseInt(body.rowSpacing) : null) : undefined,
+      needsSupport: body.needsSupport !== undefined ? body.needsSupport === true : undefined,
       openfarmSlug: body.openfarmSlug,
       openfarmData: body.openfarmData,
       thumbnailUrl: body.thumbnailUrl ?? null,

@@ -12,6 +12,7 @@ interface GardenBed {
   gridCells: string | null
   cellSize: number
   cellAssignments: string | null // JSON: { "2026": { [cellIndex: string]: plantId } }
+  sunRequirements: string | null
 }
 
 interface GardenPlant {
@@ -19,6 +20,8 @@ interface GardenPlant {
   name: string
   variety: string | null
   thumbnailUrl: string | null
+  sunRequirements: string | null
+  needsSupport: boolean
   goodNeighbors: { id: string }[]
   badNeighbors: { id: string }[]
 }
@@ -184,6 +187,7 @@ export default function BedsTab() {
   const [showAdd, setShowAdd] = useState(false)
   const [newName, setNewName] = useState("")
   const [newSize, setNewSize] = useState("")
+  const [newSun, setNewSun] = useState("")
   const [newGridCols, setNewGridCols] = useState(10)
   const [newGridRows, setNewGridRows] = useState(8)
   const [newActiveCells, setNewActiveCells] = useState<number[]>(() =>
@@ -194,6 +198,7 @@ export default function BedsTab() {
   const [editId, setEditId] = useState<string | null>(null)
   const [editName, setEditName] = useState("")
   const [editSize, setEditSize] = useState("")
+  const [editSun, setEditSun] = useState("")
 
   // Edit grid state
   const [editGridBedId, setEditGridBedId] = useState<string | null>(null)
@@ -236,6 +241,7 @@ export default function BedsTab() {
       body: JSON.stringify({
         name: newName,
         size: newSize || null,
+        sunRequirements: newSun || null,
         gridCols: newGridCols,
         gridRows: newGridRows,
         gridCells: JSON.stringify(newActiveCells),
@@ -244,7 +250,7 @@ export default function BedsTab() {
     if (res.ok) {
       const bed = await res.json()
       setBeds(b => [...b, bed])
-      setNewName(""); setNewSize(""); setShowAdd(false)
+      setNewName(""); setNewSize(""); setNewSun(""); setShowAdd(false)
       setNewGridCols(10); setNewGridRows(8)
     }
   }
@@ -253,7 +259,7 @@ export default function BedsTab() {
     const res = await fetch(`/api/garden/beds/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: editName, size: editSize }),
+      body: JSON.stringify({ name: editName, size: editSize, sunRequirements: editSun || null }),
     })
     if (res.ok) {
       const updated = await res.json()
@@ -412,6 +418,13 @@ export default function BedsTab() {
             placeholder="Beschreibung (optional, z.B. Hochbeet 2×1m)"
             className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
           />
+          <select value={newSun} onChange={e => setNewSun(e.target.value)}
+            className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white">
+            <option value="">Standort wählen (optional)</option>
+            <option value="Vollsonne">☀️ Vollsonne</option>
+            <option value="Halbschatten">🌤 Halbschatten</option>
+            <option value="Schatten">🌑 Schatten</option>
+          </select>
           <div className="border-t border-gray-100 pt-3">
             <GridEditor
               cols={newGridCols}
@@ -462,32 +475,46 @@ export default function BedsTab() {
                   <span className="text-xl">🪴</span>
                   <div className="flex-1 min-w-0">
                     {editId === bed.id ? (
-                      <div className="flex gap-2">
-                        <input
-                          value={editName}
-                          onChange={e => setEditName(e.target.value)}
-                          className="flex-1 border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
-                        />
-                        <input
-                          value={editSize}
-                          onChange={e => setEditSize(e.target.value)}
-                          placeholder="Beschreibung"
-                          className="w-28 border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
-                        />
-                        <button onClick={() => saveBed(bed.id)} className="text-xs text-primary-600 font-medium px-1">✓</button>
-                        <button onClick={() => setEditId(null)} className="text-xs text-gray-400 px-1">✕</button>
+                      <div className="flex flex-col gap-1.5">
+                        <div className="flex gap-2">
+                          <input
+                            value={editName}
+                            onChange={e => setEditName(e.target.value)}
+                            className="flex-1 border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
+                          />
+                          <input
+                            value={editSize}
+                            onChange={e => setEditSize(e.target.value)}
+                            placeholder="Beschreibung"
+                            className="w-28 border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400"
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <select value={editSun} onChange={e => setEditSun(e.target.value)}
+                            className="flex-1 border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary-400 bg-white">
+                            <option value="">Standort (optional)</option>
+                            <option value="Vollsonne">☀️ Vollsonne</option>
+                            <option value="Halbschatten">🌤 Halbschatten</option>
+                            <option value="Schatten">🌑 Schatten</option>
+                          </select>
+                          <button onClick={() => saveBed(bed.id)} className="text-xs text-primary-600 font-medium px-2">✓</button>
+                          <button onClick={() => setEditId(null)} className="text-xs text-gray-400 px-1">✕</button>
+                        </div>
                       </div>
                     ) : (
                       <>
                         <div className="font-medium text-gray-900 text-sm">{bed.name}</div>
-                        {bed.size && <div className="text-xs text-gray-500">{bed.size}</div>}
+                        <div className="text-xs text-gray-500 flex items-center gap-2">
+                          {bed.size && <span>{bed.size}</span>}
+                          {bed.sunRequirements && <span>{bed.sunRequirements === "Vollsonne" ? "☀️" : bed.sunRequirements === "Halbschatten" ? "🌤" : "🌑"} {bed.sunRequirements}</span>}
+                        </div>
                       </>
                     )}
                   </div>
                   {editId !== bed.id && (
                     <>
                       <button
-                        onClick={() => { setEditId(bed.id); setEditName(bed.name); setEditSize(bed.size ?? "") }}
+                        onClick={() => { setEditId(bed.id); setEditName(bed.name); setEditSize(bed.size ?? ""); setEditSun(bed.sunRequirements ?? "") }}
                         className="text-gray-400 hover:text-gray-700 text-xs"
                         title="Name bearbeiten"
                       >✏️</button>
@@ -663,6 +690,38 @@ export default function BedsTab() {
                       })()}
                     </>
                   )}
+
+                  {/* Rankhilfe */}
+                  {(() => {
+                    const supportPlants = bedSeasons
+                      .map(s => plants.find(p => p.id === s.plantId))
+                      .filter(p => p?.needsSupport)
+                    if (supportPlants.length === 0) return null
+                    return (
+                      <div className="flex items-start gap-1.5 text-xs text-blue-700 bg-blue-50 rounded-lg px-2 py-1.5 mb-2">
+                        <span className="shrink-0">🪢</span>
+                        <span><span className="font-medium">Rankhilfe nötig:</span> {supportPlants.map(p => p!.name).join(", ")}</span>
+                      </div>
+                    )
+                  })()}
+
+                  {/* Standort-Kompatibilität */}
+                  {(() => {
+                    if (!bed.sunRequirements) return null
+                    const mismatched = bedSeasons
+                      .map(s => plants.find(p => p.id === s.plantId))
+                      .filter(p => p?.sunRequirements && p.sunRequirements !== bed.sunRequirements)
+                    if (mismatched.length === 0) return null
+                    return (
+                      <div className="flex items-start gap-1.5 text-xs text-amber-700 bg-amber-50 rounded-lg px-2 py-1.5 mb-2">
+                        <span className="shrink-0">☀️</span>
+                        <span>
+                          <span className="font-medium">Standort-Konflikt ({bed.sunRequirements}):</span>{" "}
+                          {mismatched.map(p => `${p!.name} (${p!.sunRequirements})`).join(", ")}
+                        </span>
+                      </div>
+                    )
+                  })()}
 
                   {/* Fruchtfolge */}
                   {(() => {

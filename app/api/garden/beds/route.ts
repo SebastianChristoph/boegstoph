@@ -22,6 +22,7 @@ export async function POST(req: NextRequest) {
       gridRows: body.gridRows ?? 8,
       gridCells: body.gridCells ?? null,
       cellSize: body.cellSize ?? 20,
+      sunRequirements: body.sunRequirements || null,
     },
   })
   return NextResponse.json(bed, { status: 201 })
