@@ -5,6 +5,18 @@ import Link from "next/link"
 import CalendarWidget from "@/components/CalendarWidget"
 import UpcomingCalendar from "@/components/UpcomingCalendar"
 
+const C4_COLS = 7
+const C4_ROWS = 6
+const C4_PLAYER_BG: Record<string, string> = { Sebastian: "bg-blue-500", Tina: "bg-rose-500" }
+const C4_PLAYER_EMOJI: Record<string, string> = { Sebastian: "🔵", Tina: "🔴" }
+
+interface C4Game {
+  currentPlayer: string
+  board: string
+  status: string
+  winner: string | null
+}
+
 type LayoutMode = "mobile" | "tablet-portrait" | "tablet-landscape" | "desktop"
 
 function useLayoutMode(): LayoutMode {
@@ -43,23 +55,34 @@ export default function HomeScreen() {
   const [photos, setPhotos] = useState<Photo[]>([])
   const [idx, setIdx] = useState(0)
   const [visible, setVisible] = useState(true)
+  const [c4Game, setC4Game] = useState<C4Game | null>(null)
 
   const loadPhotos = useCallback(async () => {
     const res = await fetch("/api/photos")
     if (res.ok) setPhotos(await res.json())
   }, [])
 
-  useEffect(() => { loadPhotos() }, [loadPhotos])
+  const loadC4 = useCallback(async () => {
+    const res = await fetch("/api/connect4")
+    if (res.ok) setC4Game(await res.json())
+  }, [])
 
-  // live updates when photos are added/removed
+  useEffect(() => { loadPhotos(); loadC4() }, [loadPhotos, loadC4])
+
+  // live updates
   useEffect(() => {
     const es = new EventSource("/api/events")
     es.onmessage = (e) => {
-      const { type } = JSON.parse(e.data)
-      if (type === "photos") loadPhotos()
+      const msg = JSON.parse(e.data)
+      if (msg.type === "photos") loadPhotos()
+      if (msg.type === "connect4") {
+        const p = msg.payload
+        if (p.type === "win") setC4Game(p.nextGame)
+        else setC4Game(p.game)
+      }
     }
     return () => es.close()
-  }, [loadPhotos])
+  }, [loadPhotos, loadC4])
 
   // slideshow timer
   useEffect(() => {
@@ -80,6 +103,22 @@ export default function HomeScreen() {
   }, [photos])
 
   const photo = photos[idx]
+  const c4Board: string[] = c4Game ? JSON.parse(c4Game.board) : Array(C4_COLS * C4_ROWS).fill("")
+  const c4Status = !c4Game
+    ? null
+    : c4Game.status === "finished"
+    ? (c4Game.winner === "draw" ? "Unentschieden" : `${c4Game.winner} gewinnt!`)
+    : `${c4Game.currentPlayer} ${C4_PLAYER_EMOJI[c4Game.currentPlayer] ?? ""}`
+
+  function C4MiniBoard({ cellPx }: { cellPx: number }) {
+    return (
+      <div style={{ display: "inline-grid", gridTemplateColumns: `repeat(${C4_COLS}, ${cellPx}px)`, gap: 1 }}>
+        {c4Board.map((cell, i) => (
+          <div key={i} style={{ width: cellPx, height: cellPx }} className={`rounded-full ${cell ? (C4_PLAYER_BG[cell] ?? "bg-gray-400") : "bg-gray-700"}`} />
+        ))}
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col md:flex-row h-screen bg-black overflow-hidden select-none">
@@ -158,6 +197,21 @@ export default function HomeScreen() {
         {/* Divider */}
         <div className="border-t border-gray-800 shrink-0" />
 
+        {/* 4-Gewinnt mini preview */}
+        {c4Status && (
+          <Link href="/dashboard" className="flex flex-col items-center gap-2 group shrink-0">
+            <div className="flex items-center gap-1.5 self-start">
+              <span className="text-sm">🎮</span>
+              <span className="text-[11px] text-gray-500 group-hover:text-gray-200 transition-colors tracking-wide uppercase">4-Gewinnt</span>
+            </div>
+            <C4MiniBoard cellPx={5} />
+            <span className="text-[11px] text-gray-400 group-hover:text-gray-200 transition-colors text-center">{c4Status}</span>
+          </Link>
+        )}
+
+        {/* Divider before calendar */}
+        {c4Status && !showFiveDay && <div className="border-t border-gray-800 shrink-0" />}
+
         {/* Calendar widget — nur in portrait, in landscape ist die 5-Tage-Vorschau schon im Bild */}
         {!showFiveDay && (
           <div className="flex-1 min-h-0">
@@ -179,6 +233,12 @@ export default function HomeScreen() {
           </div>
           <span className="text-sm text-gray-400">Dashboard</span>
         </Link>
+        {c4Status && (
+          <Link href="/dashboard" className="ml-auto flex items-center gap-2 active:opacity-70">
+            <C4MiniBoard cellPx={4} />
+            <span className="text-xs text-gray-400">{c4Status}</span>
+          </Link>
+        )}
       </div>
 
     </div>
