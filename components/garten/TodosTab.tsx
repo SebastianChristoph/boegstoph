@@ -11,16 +11,7 @@ interface GardenTodo {
   season: { plant: { name: string; variety: string | null } } | null
 }
 
-type TabType = "open" | "week" | "done"
-
-function isThisWeek(dateStr: string | null): boolean {
-  if (!dateStr) return false
-  const due = new Date(dateStr)
-  const now = new Date()
-  const weekEnd = new Date(now)
-  weekEnd.setDate(now.getDate() + 7)
-  return due <= weekEnd && due >= new Date(now.setHours(0, 0, 0, 0))
-}
+type TabType = "open" | "done"
 
 function formatDate(dateStr: string | null) {
   if (!dateStr) return null
@@ -29,7 +20,7 @@ function formatDate(dateStr: string | null) {
 
 export default function TodosTab() {
   const [todos, setTodos] = useState<GardenTodo[]>([])
-  const [tab, setTab] = useState<TabType>("week")
+  const [tab, setTab] = useState<TabType>("open")
   const [showAdd, setShowAdd] = useState(false)
   const [newTitle, setNewTitle] = useState("")
   const [newDate, setNewDate] = useState("")
@@ -92,12 +83,10 @@ export default function TodosTab() {
 
   const open = dedup(todos.filter(t => !t.done))
   const done = dedup(todos.filter(t => t.done))
-  const thisWeek = open.filter(t => isThisWeek(t.dueDate))
 
-  const displayed = tab === "week" ? thisWeek : tab === "open" ? open : done
+  const displayed = tab === "open" ? open : done
 
   const openCount = open.length
-  const weekCount = thisWeek.length
 
   function isOverdue(t: GardenTodo) {
     if (!t.dueDate || t.done) return false
@@ -108,8 +97,7 @@ export default function TodosTab() {
     <div>
       <div className="flex gap-2 mb-4">
         {([
-          { id: "week", label: `Diese Woche ${weekCount > 0 ? `(${weekCount})` : ""}` },
-          { id: "open", label: `Alle offen ${openCount > 0 ? `(${openCount})` : ""}` },
+          { id: "open", label: `Offen ${openCount > 0 ? `(${openCount})` : ""}` },
           { id: "done", label: `Erledigt ${done.length > 0 ? `(${done.length})` : ""}` },
         ] as { id: TabType; label: string }[]).map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
@@ -149,7 +137,7 @@ export default function TodosTab() {
       {displayed.length === 0 ? (
         <div className="text-center py-10 text-gray-400">
           <div className="text-4xl mb-2">{tab === "done" ? "🎉" : "✅"}</div>
-          <p className="text-sm">{tab === "done" ? "Noch nichts erledigt" : tab === "week" ? "Keine Aufgaben diese Woche" : "Keine offenen Aufgaben"}</p>
+          <p className="text-sm">{tab === "done" ? "Noch nichts erledigt" : "Keine offenen Aufgaben"}</p>
         </div>
       ) : (
         <ul className="space-y-2">
