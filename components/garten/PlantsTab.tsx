@@ -383,8 +383,9 @@ export default function PlantsTab() {
                         }
                       </div>
                       <div className="text-xs text-gray-500 mt-0.5 flex items-center gap-2 flex-wrap">
-                        {plant.vorzuchtMonat && <span>🌱 {MONTH_LABELS[plant.vorzuchtMonat]}</span>}
-                        {plant.aussaatMonat && <span>🌱 Aussaat {MONTH_LABELS[plant.aussaatMonat]}</span>}
+                        {plant.vorzuchtMonat && <span>🌱 Vorzucht: {MONTH_LABELS[plant.vorzuchtMonat]}</span>}
+                        {plant.vorzuchtMonat && <span>🌿 Auspflanzen: Mitte Mai</span>}
+                        {plant.aussaatMonat && <span>🪴 Direktaussaat: {MONTH_LABELS[plant.aussaatMonat]}</span>}
                         {plant.sunRequirements && <span>{SUN_LABELS[plant.sunRequirements]}</span>}
                         {plant.goodNeighbors.length > 0 && <span className="text-green-600">🤝 {plant.goodNeighbors.length}</span>}
                         {plant.badNeighbors.length > 0 && <span className="text-red-500">🚫 {plant.badNeighbors.length}</span>}
@@ -402,7 +403,8 @@ export default function PlantsTab() {
                     <div className="border-t border-gray-100 px-4 py-3 bg-gray-50 space-y-3">
                       <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
                         {plant.vorzuchtMonat && <div>🌱 Vorzucht: <span className="font-medium">{MONTH_LABELS[plant.vorzuchtMonat]}</span></div>}
-                        {plant.aussaatMonat && <div>🌱 Aussaat: <span className="font-medium">{MONTH_LABELS[plant.aussaatMonat]}</span></div>}
+                        {plant.vorzuchtMonat && <div>🌿 Auspflanzen: <span className="font-medium">Mitte Mai (Eisheilige)</span></div>}
+                        {plant.aussaatMonat && <div>🪴 Direktaussaat: <span className="font-medium">{MONTH_LABELS[plant.aussaatMonat]}</span></div>}
                         {plant.sunRequirements && <div>{SUN_LABELS[plant.sunRequirements] ?? plant.sunRequirements}</div>}
                         {plant.waterRequirements && <div>{WATER_LABELS[plant.waterRequirements] ?? plant.waterRequirements}</div>}
                         {plant.rowSpacing && <div>↔ Reihe: <span className="font-medium">{plant.rowSpacing} cm</span></div>}
