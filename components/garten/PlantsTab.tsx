@@ -367,7 +367,10 @@ export default function PlantsTab() {
                 </div>
               ) : (
                 <>
-                  <div className="flex items-center gap-3 px-4 py-3">
+                  <div
+                    className="flex items-center gap-3 px-4 py-3 cursor-pointer select-none"
+                    onClick={() => setExpandedId(expandedId === plant.id ? null : plant.id)}
+                  >
                     {plant.thumbnailUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={plant.thumbnailUrl} alt="" className="w-9 h-9 rounded-lg object-cover shrink-0" />
@@ -391,16 +394,25 @@ export default function PlantsTab() {
                         {plant.badNeighbors.length > 0 && <span className="text-red-500">🚫 {plant.badNeighbors.length}</span>}
                       </div>
                     </div>
-                    <button onClick={() => setExpandedId(expandedId === plant.id ? null : plant.id)}
-                      className="text-gray-400 hover:text-gray-700 text-xs px-2">
-                      {expandedId === plant.id ? "▲" : "▼"}
-                    </button>
-                    <button onClick={() => openEdit(plant)} className="text-gray-400 hover:text-gray-700 text-xs">✏️</button>
-                    <button onClick={() => remove(plant.id)} className="text-gray-400 hover:text-red-500 text-xs">🗑️</button>
+                    {!seasonPlantIds.has(plant.id) && (
+                      <button
+                        onClick={e => { e.stopPropagation(); addToSeason(plant.id) }}
+                        disabled={addingToSeason === plant.id}
+                        title={`Zur Saison ${CURRENT_YEAR} hinzufügen`}
+                        className="text-green-600 hover:text-green-800 disabled:opacity-40 text-base shrink-0">
+                        {addingToSeason === plant.id ? "…" : "＋"}
+                      </button>
+                    )}
+                    <button onClick={e => { e.stopPropagation(); openEdit(plant) }} className="text-gray-400 hover:text-gray-700 text-xs shrink-0">✏️</button>
+                    <button onClick={e => { e.stopPropagation(); remove(plant.id) }} className="text-gray-400 hover:text-red-500 text-xs shrink-0">🗑️</button>
                   </div>
 
                   {expandedId === plant.id && (
                     <div className="border-t border-gray-100 px-4 py-3 bg-gray-50 space-y-3">
+                      {plant.thumbnailUrl && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={plant.thumbnailUrl} alt={plant.name} className="w-full h-40 object-cover rounded-xl" />
+                      )}
                       <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
                         {plant.vorzuchtMonat && <div>🌱 Vorzucht: <span className="font-medium">{MONTH_LABELS[plant.vorzuchtMonat]}</span></div>}
                         {plant.vorzuchtMonat && <div>🌿 Auspflanzen: <span className="font-medium">Mitte Mai (Eisheilige)</span></div>}
@@ -430,17 +442,10 @@ export default function PlantsTab() {
                           )}
                         </div>
                       )}
-                      {seasonPlantIds.has(plant.id) ? (
+                      {seasonPlantIds.has(plant.id) && (
                         <div className="text-xs text-green-700 bg-green-50 rounded-xl py-1.5 text-center font-medium">
                           ✓ In Saison {CURRENT_YEAR}
                         </div>
-                      ) : (
-                        <button
-                          onClick={() => addToSeason(plant.id)}
-                          disabled={addingToSeason === plant.id}
-                          className="w-full bg-green-600 hover:bg-green-700 text-white py-1.5 rounded-xl text-xs font-medium disabled:opacity-40">
-                          {addingToSeason === plant.id ? "…" : `+ Zur Saison ${CURRENT_YEAR} hinzufügen`}
-                        </button>
                       )}
                     </div>
                   )}
