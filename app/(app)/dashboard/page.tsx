@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma"
 import Link from "next/link"
 import CalendarWidget from "@/components/CalendarWidget"
 import GardenTodosCard from "@/components/GardenTodosCard"
+import Connect4Widget from "@/components/Connect4Widget"
 
 export default async function DashboardPage() {
   const today = new Date()
@@ -47,6 +48,8 @@ export default async function DashboardPage() {
         </div>
         <CalendarWidget />
       </div>
+
+      <Connect4Widget />
 
       <Link href="/home"
         className="flex items-center gap-4 bg-primary-600 hover:bg-primary-700 active:scale-95 transition-all text-white rounded-2xl p-5 mb-8 shadow-sm">

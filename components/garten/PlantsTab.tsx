@@ -62,6 +62,7 @@ const emptyForm = () => ({
 export default function PlantsTab() {
   const [plants, setPlants] = useState<GardenPlant[]>([])
   const [seasonPlantMethods, setSeasonPlantMethods] = useState<Record<string, string | null>>({})
+  const [seasonPlantIds, setSeasonPlantIds] = useState<Record<string, string>>({})
   const [showAdd, setShowAdd] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState(emptyForm())
@@ -80,10 +81,12 @@ export default function PlantsTab() {
     ])
     if (plantsRes.ok) setPlants(await plantsRes.json())
     if (seasonsRes.ok) {
-      const seasons: { plantId: string; method: string | null }[] = await seasonsRes.json()
-      const map: Record<string, string | null> = {}
-      seasons.forEach(s => { map[s.plantId] = s.method })
-      setSeasonPlantMethods(map)
+      const seasons: { id: string; plantId: string; method: string | null }[] = await seasonsRes.json()
+      const methodMap: Record<string, string | null> = {}
+      const idMap: Record<string, string> = {}
+      seasons.forEach(s => { methodMap[s.plantId] = s.method; idMap[s.plantId] = s.id })
+      setSeasonPlantMethods(methodMap)
+      setSeasonPlantIds(idMap)
     }
   }, [])
 
@@ -178,8 +181,18 @@ export default function PlantsTab() {
     })
     setAddingToSeason(null)
     if (res.ok) {
+      const season: { id: string } = await res.json()
       setSeasonPlantMethods(prev => ({ ...prev, [plantId]: method }))
+      setSeasonPlantIds(prev => ({ ...prev, [plantId]: season.id }))
     }
+  }
+
+  async function removeFromSeason(plantId: string) {
+    const seasonId = seasonPlantIds[plantId]
+    if (!seasonId) return
+    await fetch(`/api/garden/seasons/${seasonId}`, { method: "DELETE" })
+    setSeasonPlantMethods(prev => { const n = { ...prev }; delete n[plantId]; return n })
+    setSeasonPlantIds(prev => { const n = { ...prev }; delete n[plantId]; return n })
   }
 
   // Plants available for neighbor selection (excluding current plant)
@@ -413,7 +426,14 @@ export default function PlantsTab() {
                         {plant.badNeighbors.length > 0 && <span className="text-red-500">🚫 {plant.badNeighbors.length}</span>}
                       </div>
                     </div>
-                    {!(plant.id in seasonPlantMethods) && (
+                    {plant.id in seasonPlantMethods ? (
+                      <button
+                        onClick={e => { e.stopPropagation(); removeFromSeason(plant.id) }}
+                        title="Aus Saison entfernen"
+                        className="text-gray-400 hover:text-red-500 text-base shrink-0 transition-colors">
+                        －
+                      </button>
+                    ) : (
                       <div className="relative shrink-0">
                         <button
                           onClick={e => { e.stopPropagation(); handleAddToSeasonClick(plant) }}
@@ -491,8 +511,9 @@ export default function PlantsTab() {
                         </div>
                       )}
                       {plant.id in seasonPlantMethods && (
-                        <div className="text-xs text-green-700 bg-green-50 rounded-xl py-1.5 text-center font-medium">
-                          {seasonPlantMethods[plant.id] === "BUY" ? "🛒 Als Jungpflanze in Saison " : seasonPlantMethods[plant.id] === "INDOOR" ? "🌱 Als Vorzucht in Saison " : "🪴 Als Direktaussaat in Saison "}{CURRENT_YEAR}
+                        <div className="flex items-center justify-between text-xs text-green-700 bg-green-50 rounded-xl px-3 py-1.5 font-medium">
+                          <span>{seasonPlantMethods[plant.id] === "BUY" ? "🛒 Als Jungpflanze in Saison " : seasonPlantMethods[plant.id] === "INDOOR" ? "🌱 Als Vorzucht in Saison " : "🪴 Als Direktaussaat in Saison "}{CURRENT_YEAR}</span>
+                          <button onClick={() => removeFromSeason(plant.id)} className="text-green-500 hover:text-red-500 ml-2 text-sm font-bold">×</button>
                         </div>
                       )}
                     </div>

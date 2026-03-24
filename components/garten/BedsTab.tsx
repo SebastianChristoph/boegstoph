@@ -551,7 +551,7 @@ export default function BedsTab() {
     }
   }
 
-  function computeAutoBeetProposals(bed: GardenBed, count: number): AutoBeetProposal[] {
+  function computeAutoBeetProposals(bed: GardenBed, totalPlants: number): AutoBeetProposal[] {
     const bedSeasons = seasons.filter(s => s.bedId === bed.id)
     const existingPlantIds = bedSeasons.map(s => s.plantId).filter((id, i, arr) => arr.indexOf(id) === i)
     const existing = plants.filter(p => existingPlantIds.includes(p.id))
@@ -562,26 +562,32 @@ export default function BedsTab() {
         p.badNeighbors.some(n => n.id === e.id) || e.badNeighbors.some(n => n.id === p.id)
       )
     )
-    const actualCount = Math.min(count, eligible.length)
-    if (actualCount === 0) return []
-    const limitedPool = eligible.slice(0, 18)
-    const combos = getCombinations(limitedPool, actualCount)
-    const scored = combos
-      .map(combo => ({ combo, score: scoreCombo(combo, existing, bed.sunRequirements) }))
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 3)
+    if (eligible.length === 0) return []
     const activeCells = parseGridCells(bed.gridCells, bed.gridCols, bed.gridRows)
     const currentAssignments = parseCellAssignments(bed.cellAssignments, CURRENT_YEAR)
     const assignedSet = new Set(Object.keys(currentAssignments).map(Number))
     const freeCells = activeCells.filter(c => !assignedSet.has(c))
-    return scored.map(({ combo, score }) => {
+    const cellsToFill = Math.min(totalPlants, freeCells.length)
+    if (cellsToFill === 0) return []
+    const limitedPool = eligible.slice(0, 18)
+    const maxVarieties = Math.min(cellsToFill, eligible.length, 5)
+    const allScored: { combo: GardenPlant[]; score: number }[] = []
+    for (let v = 1; v <= maxVarieties; v++) {
+      getCombinations(limitedPool, v).forEach(combo => {
+        allScored.push({ combo, score: scoreCombo(combo, existing, bed.sunRequirements) })
+      })
+    }
+    allScored.sort((a, b) => b.score - a.score)
+    return allScored.slice(0, 3).map(({ combo, score }) => {
       const plantIds = combo.map(p => p.id)
-      const chunkSize = Math.max(1, Math.floor(freeCells.length / plantIds.length))
+      const base = Math.floor(cellsToFill / plantIds.length)
+      const remainder = cellsToFill % plantIds.length
       const newCellAssignments: Record<string, string> = {}
+      let offset = 0
       plantIds.forEach((plantId, idx) => {
-        const start = idx * chunkSize
-        const end = idx === plantIds.length - 1 ? freeCells.length : start + chunkSize
-        freeCells.slice(start, end).forEach(cellIdx => { newCellAssignments[cellIdx.toString()] = plantId })
+        const n = base + (idx < remainder ? 1 : 0)
+        freeCells.slice(offset, offset + n).forEach(cellIdx => { newCellAssignments[cellIdx.toString()] = plantId })
+        offset += n
       })
       return { plantIds, newCellAssignments, score }
     })
@@ -887,9 +893,14 @@ export default function BedsTab() {
                   const bedSeasonPlantIds = bedSeasons.map(s => s.plantId).filter((id, i, arr) => arr.indexOf(id) === i)
                   const proposal = autoBeetProposals[autoBeetProposalIdx] ?? null
                   const maxCount = (() => {
+                    const activeCells = parseGridCells(bed.gridCells, bed.gridCols, bed.gridRows)
+                    const curAssign = parseCellAssignments(bed.cellAssignments, CURRENT_YEAR)
+                    const assignedSet = new Set(Object.keys(curAssign).map(Number))
+                    return activeCells.filter(c => !assignedSet.has(c)).length
+                  })()
+                  const hasEligible = (() => {
                     const seasonIds = new Set(seasons.map(s => s.plantId))
-                    const eligible = plants.filter(p => seasonIds.has(p.id) && !bedSeasonPlantIds.includes(p.id))
-                    return Math.min(eligible.length, 8)
+                    return plants.some(p => seasonIds.has(p.id) && !bedSeasonPlantIds.includes(p.id))
                   })()
                   return (
                     <div className="border-t border-indigo-100 px-4 py-3 bg-indigo-50 space-y-3">
@@ -901,7 +912,7 @@ export default function BedsTab() {
                         <p className="text-xs text-indigo-600">Bestehende Pflanzen bleiben — ich ergänze passende Arten.</p>
                       )}
                       <div className="flex items-center gap-2">
-                        <span className="text-xs text-gray-600 shrink-0">{bedSeasonPlantIds.length > 0 ? "Wie viele weitere Arten?" : "Wie viele Pflanzen-Arten?"}</span>
+                        <span className="text-xs text-gray-600 shrink-0">Wie viele Pflanzen insgesamt?</span>
                         <button onClick={() => setAutoBeetCount(c => Math.max(1, c - 1))} className="w-6 h-6 rounded border border-indigo-300 text-indigo-700 text-sm leading-none">−</button>
                         <span className="w-6 text-center text-sm font-mono text-indigo-800">{Math.min(autoBeetCount, maxCount)}</span>
                         <button onClick={() => setAutoBeetCount(c => Math.min(maxCount, c + 1))} className="w-6 h-6 rounded border border-indigo-300 text-indigo-700 text-sm leading-none">+</button>
@@ -911,14 +922,17 @@ export default function BedsTab() {
                             setAutoBeetProposals(props)
                             setAutoBeetProposalIdx(0)
                           }}
-                          disabled={maxCount === 0}
+                          disabled={maxCount === 0 || !hasEligible}
                           className="ml-auto text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-lg disabled:opacity-40 hover:bg-indigo-700"
                         >
                           Vorschlag erstellen
                         </button>
                       </div>
-                      {maxCount === 0 && (
-                        <p className="text-xs text-amber-600">Keine weiteren Saison-Pflanzen verfügbar. Erst im Tab Pflanzen zur Saison 2026 hinzufügen.</p>
+                      {!hasEligible && (
+                        <p className="text-xs text-amber-600">Keine Saison-Pflanzen verfügbar. Erst im Tab Pflanzen zur Saison 2026 hinzufügen.</p>
+                      )}
+                      {hasEligible && maxCount === 0 && (
+                        <p className="text-xs text-amber-600">Alle Zellen bereits belegt.</p>
                       )}
                       {autoBeetProposals.length === 0 && maxCount > 0 && (
                         <p className="text-xs text-gray-400">Anzahl wählen und Vorschlag erstellen.</p>

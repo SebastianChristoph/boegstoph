@@ -154,3 +154,13 @@ model PushSubscription {
   auth      String
   createdAt DateTime @default(now())
 }
+
+model ConnectFourGame {
+  id            String   @id @default(cuid())
+  board         String   // JSON: Cell[42] (""|"Sebastian"|"Tina"), row-major
+  currentPlayer String   // "Sebastian" | "Tina"
+  winner        String?  // null | "Sebastian" | "Tina" | "draw"
+  status        String   @default("active") // "active" | "finished"
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
