@@ -295,7 +295,11 @@ function GridEditor({
   onColsChange: (c: number) => void
   onRowsChange: (r: number) => void
 }) {
-  const areaSqm = (activeCells.length * 0.04).toFixed(2)
+  const CELL_CM = 20
+  const widthCm = cols * CELL_CM
+  const heightCm = rows * CELL_CM
+  const fmtDim = (cm: number) => cm >= 100 ? (cm / 100).toFixed(1).replace('.', ',') + ' m' : cm + ' cm'
+  const areaSqm = (activeCells.length * (CELL_CM / 100) ** 2).toFixed(2)
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2 text-xs text-gray-600 flex-wrap">
@@ -308,8 +312,9 @@ function GridEditor({
           <button onClick={() => onRowsChange(Math.max(2, rows - 1))} className="w-6 h-6 rounded border border-gray-300 hover:border-gray-400 text-sm leading-none">−</button>
           <span className="w-6 text-center font-mono">{rows}</span>
           <button onClick={() => onRowsChange(Math.min(15, rows + 1))} className="w-6 h-6 rounded border border-gray-300 hover:border-gray-400 text-sm leading-none">+</button>
-          <span className="text-gray-400 ml-1">(à 20 cm)</span>
         </div>
+        <span className="text-gray-500 font-medium ml-1">= {fmtDim(widthCm)} × {fmtDim(heightCm)}</span>
+        <span className="text-gray-400">(1 Zelle = {CELL_CM} cm)</span>
       </div>
       <p className="text-xs text-gray-400">Tippe Zellen an, um sie zu entfernen oder hinzuzufügen — forme so dein Beet nach.</p>
       <div className="overflow-x-auto pb-1">
