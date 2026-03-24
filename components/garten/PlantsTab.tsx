@@ -370,7 +370,7 @@ export default function PlantsTab() {
       ) : (
         <ul className="space-y-3">
           {plants.map(plant => (
-            <li key={plant.id} className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+            <li key={plant.id} className="bg-white border border-gray-200 rounded-2xl shadow-sm relative">
               {editId === plant.id ? (
                 <div className="p-4">
                   <h3 className="font-semibold text-gray-800 text-sm mb-3">Pflanze bearbeiten</h3>
@@ -415,7 +415,7 @@ export default function PlantsTab() {
                           {addingToSeason === plant.id ? "…" : "＋"}
                         </button>
                         {methodPickPlantId === plant.id && (
-                          <div className="absolute right-0 top-7 z-10 bg-white border border-gray-200 rounded-xl shadow-lg p-2 flex flex-col gap-1 min-w-[160px]"
+                          <div className="absolute right-0 top-7 z-50 bg-white border border-gray-200 rounded-xl shadow-lg p-2 flex flex-col gap-1 min-w-[160px]"
                             onClick={e => e.stopPropagation()}>
                             <p className="text-[10px] text-gray-400 px-2 pb-1">Wie anbauen?</p>
                             <button onClick={() => addToSeason(plant.id, "INDOOR")}
@@ -439,7 +439,7 @@ export default function PlantsTab() {
                   </div>
 
                   {expandedId === plant.id && (
-                    <div className="border-t border-gray-100 px-4 py-3 bg-gray-50 space-y-3">
+                    <div className="border-t border-gray-100 px-4 py-3 bg-gray-50 space-y-3 rounded-b-2xl">
                       {plant.thumbnailUrl && (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={plant.thumbnailUrl} alt={plant.name} className="w-full h-40 object-cover rounded-xl" />
