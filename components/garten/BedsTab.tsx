@@ -239,6 +239,50 @@ function getCompatibility(bedPlantIds: string[], allPlants: GardenPlant[]) {
   return { good, bad }
 }
 
+interface AutoBeetProposal {
+  plantIds: string[]
+  newCellAssignments: Record<string, string>
+  score: number
+}
+
+function getCombinations<T>(arr: T[], k: number): T[][] {
+  if (k === 0) return [[]]
+  if (arr.length < k) return []
+  const [first, ...rest] = arr
+  return [
+    ...getCombinations(rest, k - 1).map(combo => [first, ...combo]),
+    ...getCombinations(rest, k),
+  ]
+}
+
+function scoreCombo(combo: GardenPlant[], existing: GardenPlant[], bedSun: string | null): number {
+  let score = 0
+  for (let i = 0; i < combo.length; i++) {
+    const a = combo[i]
+    for (const e of existing) {
+      if (a.goodNeighbors.some(n => n.id === e.id) || e.goodNeighbors.some(n => n.id === a.id)) score += 3
+      if (a.badNeighbors.some(n => n.id === e.id) || e.badNeighbors.some(n => n.id === a.id)) score -= 8
+    }
+    for (let j = i + 1; j < combo.length; j++) {
+      const b = combo[j]
+      if (a.goodNeighbors.some(n => n.id === b.id) || b.goodNeighbors.some(n => n.id === a.id)) score += 3
+      if (a.badNeighbors.some(n => n.id === b.id) || b.badNeighbors.some(n => n.id === a.id)) score -= 8
+    }
+    if (bedSun && a.sunRequirements === bedSun) score += 2
+    else if (bedSun && a.sunRequirements && a.sunRequirements !== bedSun) score -= 2
+  }
+  const withWater = [...existing, ...combo].filter(p => p.waterRequirements)
+  if (withWater.length > 1) {
+    const counts = new Map<string, number>()
+    for (const p of withWater) counts.set(p.waterRequirements!, (counts.get(p.waterRequirements!) ?? 0) + 1)
+    const maxCount = Math.max(...Array.from(counts.values()))
+    if (maxCount === withWater.length) score += 3
+    else if (maxCount / withWater.length >= 0.7) score += 1
+    else score -= 1
+  }
+  return score
+}
+
 function GridEditor({
   cols, rows, activeCells,
   onToggle, onAllActive, onAllInactive,
@@ -312,6 +356,10 @@ export default function BedsTab() {
   const [assigning, setAssigning] = useState<string | null>(null)
   const [selectingCell, setSelectingCell] = useState<{ bedId: string; cellIndex: number } | null>(null)
   const [evalOpen, setEvalOpen] = useState<Set<string>>(new Set())
+  const [autoBeetBedId, setAutoBeetBedId] = useState<string | null>(null)
+  const [autoBeetCount, setAutoBeetCount] = useState(3)
+  const [autoBeetProposals, setAutoBeetProposals] = useState<AutoBeetProposal[]>([])
+  const [autoBeetProposalIdx, setAutoBeetProposalIdx] = useState(0)
 
   const load = useCallback(async () => {
     const [bedsRes, seasonsRes, plantsRes, histRes] = await Promise.all([
@@ -498,6 +546,73 @@ export default function BedsTab() {
     }
   }
 
+  function computeAutoBeetProposals(bed: GardenBed, count: number): AutoBeetProposal[] {
+    const bedSeasons = seasons.filter(s => s.bedId === bed.id)
+    const existingPlantIds = bedSeasons.map(s => s.plantId).filter((id, i, arr) => arr.indexOf(id) === i)
+    const existing = plants.filter(p => existingPlantIds.includes(p.id))
+    const seasonPlantIds = new Set(seasons.map(s => s.plantId))
+    const pool = plants.filter(p => seasonPlantIds.has(p.id) && !existingPlantIds.includes(p.id))
+    const eligible = pool.filter(p =>
+      !existing.some(e =>
+        p.badNeighbors.some(n => n.id === e.id) || e.badNeighbors.some(n => n.id === p.id)
+      )
+    )
+    const actualCount = Math.min(count, eligible.length)
+    if (actualCount === 0) return []
+    const limitedPool = eligible.slice(0, 18)
+    const combos = getCombinations(limitedPool, actualCount)
+    const scored = combos
+      .map(combo => ({ combo, score: scoreCombo(combo, existing, bed.sunRequirements) }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3)
+    const activeCells = parseGridCells(bed.gridCells, bed.gridCols, bed.gridRows)
+    const currentAssignments = parseCellAssignments(bed.cellAssignments, CURRENT_YEAR)
+    const assignedSet = new Set(Object.keys(currentAssignments).map(Number))
+    const freeCells = activeCells.filter(c => !assignedSet.has(c))
+    return scored.map(({ combo, score }) => {
+      const plantIds = combo.map(p => p.id)
+      const chunkSize = Math.max(1, Math.floor(freeCells.length / plantIds.length))
+      const newCellAssignments: Record<string, string> = {}
+      plantIds.forEach((plantId, idx) => {
+        const start = idx * chunkSize
+        const end = idx === plantIds.length - 1 ? freeCells.length : start + chunkSize
+        freeCells.slice(start, end).forEach(cellIdx => { newCellAssignments[cellIdx.toString()] = plantId })
+      })
+      return { plantIds, newCellAssignments, score }
+    })
+  }
+
+  async function applyAutoBeet(bedId: string, proposal: AutoBeetProposal) {
+    const bed = beds.find(b => b.id === bedId)
+    if (!bed) return
+    for (const plantId of proposal.plantIds) {
+      const unassigned = seasons.find(s => s.plantId === plantId && s.bedId === null)
+      if (unassigned) {
+        const res = await fetch(`/api/garden/seasons/${unassigned.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ bedId }),
+        })
+        if (res.ok) { const updated = await res.json(); setSeasons(s => s.map(x => x.id === unassigned.id ? updated : x)) }
+      } else if (!seasons.some(s => s.plantId === plantId && s.bedId === bedId)) {
+        const res = await fetch("/api/garden/seasons", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ plantId, year: CURRENT_YEAR, bedId }),
+        })
+        if (res.ok) { const ns = await res.json(); setSeasons(s => [...s, ns]) }
+      }
+    }
+    const all = getCellAllAssignments(bed)
+    const yearKey = CURRENT_YEAR.toString()
+    if (!all[yearKey]) all[yearKey] = {}
+    Object.assign(all[yearKey], proposal.newCellAssignments)
+    await saveCellAssignments(bedId, all)
+    setAutoBeetBedId(null)
+    setAutoBeetProposals([])
+    setAutoBeetProposalIdx(0)
+  }
+
   return (
     <div>
       <button
@@ -617,6 +732,16 @@ export default function BedsTab() {
                   </div>
                   {editId !== bed.id && (
                     <>
+                      <button
+                        onClick={() => {
+                          setAutoBeetBedId(autoBeetBedId === bed.id ? null : bed.id)
+                          setAutoBeetProposals([])
+                          setAutoBeetProposalIdx(0)
+                          setAutoBeetCount(3)
+                        }}
+                        className={`text-xs transition-colors ${autoBeetBedId === bed.id ? "text-indigo-600" : "text-gray-400 hover:text-indigo-500"}`}
+                        title="Auto-Beet"
+                      >🤖</button>
                       <button
                         onClick={() => { setEditId(bed.id); setEditName(bed.name); setEditSize(bed.size ?? ""); setEditSun(bed.sunRequirements ?? "") }}
                         className="text-gray-400 hover:text-gray-700 text-xs"
@@ -751,6 +876,91 @@ export default function BedsTab() {
                     </div>
                   )}
                 </div>
+
+                {/* Auto-Beet panel */}
+                {autoBeetBedId === bed.id && (() => {
+                  const bedSeasonPlantIds = bedSeasons.map(s => s.plantId).filter((id, i, arr) => arr.indexOf(id) === i)
+                  const proposal = autoBeetProposals[autoBeetProposalIdx] ?? null
+                  const maxCount = (() => {
+                    const seasonIds = new Set(seasons.map(s => s.plantId))
+                    const eligible = plants.filter(p => seasonIds.has(p.id) && !bedSeasonPlantIds.includes(p.id))
+                    return Math.min(eligible.length, 8)
+                  })()
+                  return (
+                    <div className="border-t border-indigo-100 px-4 py-3 bg-indigo-50 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-indigo-700">🤖 Auto-Beet</span>
+                        <button onClick={() => { setAutoBeetBedId(null); setAutoBeetProposals([]) }} className="text-xs text-gray-400">✕</button>
+                      </div>
+                      {bedSeasonPlantIds.length > 0 && (
+                        <p className="text-xs text-indigo-600">Bestehende Pflanzen bleiben — ich ergänze passende Arten.</p>
+                      )}
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-600 shrink-0">{bedSeasonPlantIds.length > 0 ? "Wie viele weitere Arten?" : "Wie viele Pflanzen-Arten?"}</span>
+                        <button onClick={() => setAutoBeetCount(c => Math.max(1, c - 1))} className="w-6 h-6 rounded border border-indigo-300 text-indigo-700 text-sm leading-none">−</button>
+                        <span className="w-6 text-center text-sm font-mono text-indigo-800">{Math.min(autoBeetCount, maxCount)}</span>
+                        <button onClick={() => setAutoBeetCount(c => Math.min(maxCount, c + 1))} className="w-6 h-6 rounded border border-indigo-300 text-indigo-700 text-sm leading-none">+</button>
+                        <button
+                          onClick={() => {
+                            const props = computeAutoBeetProposals(bed, Math.min(autoBeetCount, maxCount))
+                            setAutoBeetProposals(props)
+                            setAutoBeetProposalIdx(0)
+                          }}
+                          disabled={maxCount === 0}
+                          className="ml-auto text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-lg disabled:opacity-40 hover:bg-indigo-700"
+                        >
+                          Vorschlag erstellen
+                        </button>
+                      </div>
+                      {maxCount === 0 && (
+                        <p className="text-xs text-amber-600">Keine weiteren Saison-Pflanzen verfügbar. Erst im Tab Pflanzen zur Saison 2026 hinzufügen.</p>
+                      )}
+                      {autoBeetProposals.length === 0 && maxCount > 0 && (
+                        <p className="text-xs text-gray-400">Anzahl wählen und Vorschlag erstellen.</p>
+                      )}
+                      {proposal && (() => {
+                        const proposalPlants = proposal.plantIds.map(id => plants.find(p => p.id === id)).filter(Boolean) as GardenPlant[]
+                        const freeCellCount = Object.keys(proposal.newCellAssignments).length
+                        return (
+                          <div className="space-y-2">
+                            <div className="bg-white rounded-lg p-2.5 border border-indigo-200 space-y-1.5">
+                              {proposalPlants.map(p => {
+                                const cellCount = Object.values(proposal.newCellAssignments).filter(id => id === p.id).length
+                                return (
+                                  <div key={p.id} className="flex items-center gap-2 text-xs">
+                                    {p.thumbnailUrl
+                                      // eslint-disable-next-line @next/next/no-img-element
+                                      ? <img src={p.thumbnailUrl} alt="" className="w-5 h-5 rounded object-cover shrink-0" />
+                                      : <span>🌱</span>}
+                                    <span className="font-medium text-gray-800">{p.name}{p.variety ? ` · ${p.variety}` : ""}</span>
+                                    <span className="ml-auto text-gray-400">{cellCount} Zellen</span>
+                                  </div>
+                                )
+                              })}
+                              <div className="text-xs text-gray-400 border-t border-gray-100 pt-1.5 mt-1">{freeCellCount} von {parseGridCells(bed.gridCells, bed.gridCols, bed.gridRows).length} Zellen befüllt</div>
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => applyAutoBeet(bed.id, proposal)}
+                                className="flex-1 bg-indigo-600 text-white py-1.5 rounded-lg text-xs font-medium hover:bg-indigo-700"
+                              >
+                                ✓ Übernehmen
+                              </button>
+                              {autoBeetProposals.length > 1 && (
+                                <button
+                                  onClick={() => setAutoBeetProposalIdx(i => (i + 1) % autoBeetProposals.length)}
+                                  className="px-3 rounded-lg text-xs border border-indigo-300 text-indigo-700 hover:bg-indigo-100"
+                                >
+                                  Nächster ({autoBeetProposalIdx + 1}/{autoBeetProposals.length})
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })()}
+                    </div>
+                  )
+                })()}
 
                 {/* Plants section */}
                 <div className="border-t border-gray-100 px-4 py-3 bg-gray-50">
