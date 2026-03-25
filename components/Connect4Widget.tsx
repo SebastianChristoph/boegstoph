@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 
 const COLS = 7
 const ROWS = 6
@@ -31,9 +31,7 @@ const PLAYER_STATUS_BG: Record<string, string> = {
 export default function Connect4Widget() {
   const [game, setGame] = useState<C4Game | null | undefined>(undefined)
   const [open, setOpen] = useState(false)
-  const [winBanner, setWinBanner] = useState<string | null>(null)
   const [dropping, setDropping] = useState(false)
-  const nextGameRef = useRef<C4Game | null>(null)
 
   const load = useCallback(async () => {
     const res = await fetch("/api/connect4")
@@ -48,18 +46,8 @@ export default function Connect4Widget() {
       const msg = JSON.parse(e.data)
       if (msg.type !== "connect4") return
       const p = msg.payload
-      if (p.type === "move" || p.type === "new") {
+      if (p.type === "move" || p.type === "new" || p.type === "win") {
         setGame(p.game)
-      } else if (p.type === "win") {
-        setGame(p.game)
-        nextGameRef.current = p.nextGame
-        const label = p.winner === "draw" ? "Unentschieden! 🤝" : `${p.winner} gewinnt! 🎉`
-        setWinBanner(label)
-        setTimeout(() => {
-          setGame(nextGameRef.current)
-          setWinBanner(null)
-          nextGameRef.current = null
-        }, 3500)
       }
     }
     return () => es.close()
@@ -71,7 +59,7 @@ export default function Connect4Widget() {
   }
 
   async function dropInCol(col: number) {
-    if (!game || game.status !== "active" || dropping || winBanner) return
+    if (!game || game.status !== "active" || dropping) return
     setDropping(true)
     let excludeEndpoint: string | undefined
     try {
@@ -88,16 +76,6 @@ export default function Connect4Widget() {
     if (res.ok) {
       const data = await res.json()
       setGame(data.game)
-      if (data.nextGame) {
-        nextGameRef.current = data.nextGame
-        const w = data.game.winner === "draw" ? "Unentschieden! 🤝" : `${data.game.winner} gewinnt! 🎉`
-        setWinBanner(w)
-        setTimeout(() => {
-          setGame(nextGameRef.current)
-          setWinBanner(null)
-          nextGameRef.current = null
-        }, 3500)
-      }
     }
   }
 
@@ -105,10 +83,8 @@ export default function Connect4Widget() {
 
   const statusText = !game
     ? "Kein Spiel aktiv"
-    : winBanner
-    ? winBanner
     : game.status === "finished"
-    ? (game.winner === "draw" ? "Unentschieden" : `${game.winner} hat gewonnen!`)
+    ? (game.winner === "draw" ? "Unentschieden! 🤝" : `${game.winner} gewinnt! 🎉`)
     : `${game.currentPlayer} ist am Zug`
 
   function MiniCell({ cell }: { cell: Cell }) {
@@ -153,14 +129,14 @@ export default function Connect4Widget() {
             <span className="text-lg">🎮</span>
             <h2 className="text-sm font-semibold text-gray-700">4-Gewinnt</h2>
           </div>
-          {game && game.status === "active" && !winBanner && (
+          {game && game.status === "active" && (
             <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${PLAYER_STATUS_BG[game.currentPlayer] ?? "bg-gray-100 text-gray-600"}`}>
               {game.currentPlayer} am Zug
             </span>
           )}
         </div>
         <div className="flex justify-center mb-2">{miniBoard}</div>
-        <p className={`text-xs text-center font-medium ${winBanner ? "text-green-600" : "text-gray-500"}`}>
+        <p className={`text-xs text-center font-medium ${game?.status === "finished" ? "text-green-600" : "text-gray-500"}`}>
           {statusText}
         </p>
       </div>
@@ -194,17 +170,15 @@ export default function Connect4Widget() {
               <>
                 {/* Status bar */}
                 <div className={`text-center text-sm font-semibold mb-4 py-2.5 rounded-xl transition-all ${
-                  winBanner
+                  game.status === "finished"
                     ? "bg-green-50 text-green-700"
-                    : game.status === "active"
-                    ? (PLAYER_STATUS_BG[game.currentPlayer] ?? "bg-gray-50 text-gray-700")
-                    : "bg-gray-50 text-gray-600"
+                    : (PLAYER_STATUS_BG[game.currentPlayer] ?? "bg-gray-50 text-gray-700")
                 }`}>
-                  {winBanner ?? statusText}
+                  {statusText}
                 </div>
 
                 {/* Column buttons */}
-                {game.status === "active" && !winBanner && (
+                {game.status === "active" && (
                   <div className="flex gap-1 mb-1 justify-center">
                     {Array.from({ length: COLS }, (_, c) => {
                       const colFull = board[c] !== "" // top row of col is filled → full
@@ -224,7 +198,7 @@ export default function Connect4Widget() {
                 )}
 
                 {/* Board */}
-                <div className="relative flex justify-center">
+                <div className="flex justify-center">
                   <div className="bg-indigo-700 rounded-xl p-2">
                     <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${COLS}, 1fr)`, display: "inline-grid" }}>
                       {Array.from({ length: ROWS * COLS }, (_, i) => (
@@ -232,15 +206,19 @@ export default function Connect4Widget() {
                       ))}
                     </div>
                   </div>
-                  {winBanner && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-white/85 rounded-xl">
-                      <div className="text-center">
-                        <p className="text-xl font-bold text-gray-900">{winBanner}</p>
-                        <p className="text-xs text-gray-400 mt-1">Neues Spiel startet gleich…</p>
-                      </div>
-                    </div>
-                  )}
                 </div>
+
+                {/* New game button after finished */}
+                {game.status === "finished" && (
+                  <div className="mt-4 flex justify-center">
+                    <button
+                      onClick={startGame}
+                      className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-medium hover:bg-indigo-700"
+                    >
+                      Neues Spiel starten 🎲
+                    </button>
+                  </div>
+                )}
 
                 {/* Legend */}
                 <div className="flex justify-center gap-5 mt-3 text-xs text-gray-500">

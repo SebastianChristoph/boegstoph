@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth"
 import { NextRequest, NextResponse } from "next/server"
 import { authOptions } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
-import { dropPiece, checkWinner, randomPlayer, otherPlayer, emptyBoard, type Board, type Player } from "@/lib/connect4"
+import { dropPiece, checkWinner, otherPlayer, type Board, type Player } from "@/lib/connect4"
 import { broadcast } from "@/lib/sse"
 import { sendPushToAll } from "@/lib/webpush"
 
@@ -39,20 +39,12 @@ export async function POST(req: NextRequest) {
   })
 
   if (finished) {
-    const next = randomPlayer()
-    const nextGame = await prisma.connectFourGame.create({
-      data: {
-        board: JSON.stringify(emptyBoard()),
-        currentPlayer: next,
-        status: "active",
-      },
-    })
     const msg = winner === "draw"
-      ? `Unentschieden! Neues Spiel: ${next} beginnt.`
-      : `${winner} gewinnt! Neues Spiel: ${next} beginnt.`
+      ? `Unentschieden! 🤝`
+      : `${winner} gewinnt! 🎉`
     sendPushToAll("🎮 4-Gewinnt", msg, excludeEndpoint).catch(() => {})
-    broadcast("connect4", { type: "win", winner, game: updated, nextGame })
-    return NextResponse.json({ game: updated, nextGame })
+    broadcast("connect4", { type: "win", winner, game: updated })
+    return NextResponse.json({ game: updated })
   }
 
   const next = updated.currentPlayer
