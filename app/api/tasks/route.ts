@@ -28,6 +28,6 @@ export async function POST(req: NextRequest) {
     },
   })
   broadcast("tasks")
-  sendPushToAll("✅ Neue Aufgabe", task.title).catch(() => {})
+  sendPushToAll("✅ Neue Aufgabe", task.title, body.excludeEndpoint).catch(() => {})
   return NextResponse.json(task, { status: 201 })
 }

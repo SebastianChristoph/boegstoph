@@ -219,10 +219,16 @@ export default function TasksClient({ initialTasks }: { initialTasks: TaskWithOr
     setSaving(true)
     const cat = form.category.trim() || null
     const catTasks = cat ? (taskMap[cat] ?? []) : []
+    let excludeEndpoint: string | undefined
+    try {
+      const reg = await navigator.serviceWorker.ready
+      const sub = await reg.pushManager.getSubscription()
+      excludeEndpoint = sub?.endpoint
+    } catch { /* push not available */ }
     await fetch("/api/tasks", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, category: cat, sortOrder: catTasks.length }),
+      body: JSON.stringify({ ...form, category: cat, sortOrder: catTasks.length, excludeEndpoint }),
     })
     setForm(EMPTY_FORM)
     setNewCatMode(false)
