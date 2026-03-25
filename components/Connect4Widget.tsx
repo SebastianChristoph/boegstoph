@@ -42,6 +42,7 @@ export default function Connect4Widget() {
 
   useEffect(() => {
     const es = new EventSource("/api/events")
+    es.onopen = () => load()
     es.onmessage = (e) => {
       const msg = JSON.parse(e.data)
       if (msg.type !== "connect4") return
@@ -51,7 +52,13 @@ export default function Connect4Widget() {
       }
     }
     return () => es.close()
-  }, [])
+  }, [load])
+
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === "visible") load() }
+    document.addEventListener("visibilitychange", onVisible)
+    return () => document.removeEventListener("visibilitychange", onVisible)
+  }, [load])
 
   async function startGame() {
     const res = await fetch("/api/connect4", { method: "POST" })

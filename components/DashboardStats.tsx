@@ -39,11 +39,18 @@ export default function DashboardStats() {
 
   useEffect(() => {
     const es = new EventSource("/api/events")
+    es.onopen = () => load()
     es.onmessage = (e) => {
       const { type } = JSON.parse(e.data)
       if (type === "shopping" || type === "tasks" || type === "garden-todos") load()
     }
     return () => es.close()
+  }, [])
+
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === "visible") load() }
+    document.addEventListener("visibilitychange", onVisible)
+    return () => document.removeEventListener("visibilitychange", onVisible)
   }, [])
 
   const s = stats
