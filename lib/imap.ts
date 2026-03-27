@@ -35,6 +35,7 @@ export async function fetchLatestThermometerCSV(): Promise<string | null> {
     // Check newest messages first
     for (let i = uids.length - 1; i >= 0; i--) {
       for await (const msg of client.fetch([uids[i]], { source: true }, { uid: true })) {
+        if (!msg.source) continue
         const parsed = await simpleParser(msg.source)
 
         for (const att of parsed.attachments) {
