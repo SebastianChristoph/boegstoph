@@ -9,6 +9,9 @@ const withPWA = withPWAInit({
 
 const nextConfig = {
   output: "standalone",
+  experimental: {
+    serverComponentsExternalPackages: ["imapflow", "mailparser"],
+  },
 }
 
 export default withPWA(nextConfig)
