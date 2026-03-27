@@ -30,7 +30,7 @@ export async function fetchLatestThermometerCSV(): Promise<string | null> {
     since.setDate(since.getDate() - 2)
 
     const uids = await client.search({ since }, { uid: true })
-    if (!uids.length) return null
+    if (!uids || !uids.length) return null
 
     // Check newest messages first
     for (let i = uids.length - 1; i >= 0; i--) {
