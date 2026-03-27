@@ -33,7 +33,7 @@ export async function GET() {
   // ── Frost days & Growing Degree Days (Basis 5°C) ────────────────────────────
   let frostDays = 0
   let growingDegreeDays = 0
-  for (const { temps } of byDay.values()) {
+  for (const { temps } of Array.from(byDay.values())) {
     const dayMin = Math.min(...temps)
     const dayMax = Math.max(...temps)
     const dayAvg = (dayMin + dayMax) / 2
