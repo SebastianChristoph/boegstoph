@@ -62,8 +62,8 @@ function LineChart({
 
   function fmtX(ts: number) {
     const d = new Date(ts)
-    if (showTime) return d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })
-    return d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" })
+    if (showTime) return d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" })
+    return d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", timeZone: "UTC" })
   }
 
   return (
@@ -174,7 +174,7 @@ export default function DataTab() {
           <div className="text-xs text-gray-400 mb-2">
             Letzter Messwert · {new Date(latest.timestamp).toLocaleString("de-DE", {
               day: "2-digit", month: "2-digit", year: "numeric",
-              hour: "2-digit", minute: "2-digit",
+              hour: "2-digit", minute: "2-digit", timeZone: "UTC",
             })}
           </div>
           <div className="flex gap-6">
