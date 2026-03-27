@@ -5,7 +5,7 @@ export interface ThermometerReading {
 }
 
 export function parseThermometerCSV(csv: string): ThermometerReading[] {
-  const lines = csv.trim().split(/\r?\n/)
+  const lines = csv.replace(/^\uFEFF/, "").trim().split(/\r?\n/)
   if (lines.length < 2) return []
 
   const results: ThermometerReading[] = []
