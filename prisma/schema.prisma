@@ -148,11 +148,12 @@ model GardenNote {
 }
 
 model PushSubscription {
-  id        String   @id @default(cuid())
-  endpoint  String   @unique
-  p256dh    String
-  auth      String
-  createdAt DateTime @default(now())
+  id           String   @id @default(cuid())
+  endpoint     String   @unique
+  p256dh       String
+  auth         String
+  isStandalone Boolean  @default(false)  // true = PWA installed, false = regular browser tab
+  createdAt    DateTime @default(now())
 }
 
 model ConnectFourGame {
@@ -170,6 +171,7 @@ model KniffelGame {
   id            String   @id @default(cuid())
   status        String   @default("active")        // "active" | "finished"
   currentPlayer String                              // "Sebastian" | "Tina"
+  winner        String?                             // null | "Sebastian" | "Tina" | "draw"
   scores        String                              // JSON: { Sebastian: ScoreCard, Tina: ScoreCard }
   dice          String   @default("[0,0,0,0,0]")   // JSON: current dice [1-6], 0 = not yet rolled
   held          String   @default("[false,false,false,false,false]") // JSON: which dice are held

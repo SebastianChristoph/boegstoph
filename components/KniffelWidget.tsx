@@ -88,19 +88,27 @@ function ScoreCell({ value, preview, isAvailable, onClick }: {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
+interface Scores { Sebastian: number; Tina: number }
+
 export default function KniffelWidget() {
   const [game, setGame] = useState<KniffelGameData | null | undefined>(undefined)
+  const [winScores, setWinScores] = useState<Scores | null>(null)
   const [open, setOpen] = useState(false)
   const [localHeld, setLocalHeld] = useState<boolean[]>([false, false, false, false, false])
   const [rolling, setRolling] = useState(false)
   const [scoring, setScoring] = useState(false)
+
+  const loadScores = useCallback(async () => {
+    const res = await fetch("/api/kniffel/scores")
+    if (res.ok) setWinScores(await res.json())
+  }, [])
 
   const load = useCallback(async () => {
     const res = await fetch("/api/kniffel")
     if (res.ok) setGame(await res.json())
   }, [])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => { load(); loadScores() }, [load, loadScores])
 
   useEffect(() => {
     const es = new EventSource("/api/events")
@@ -109,15 +117,16 @@ export default function KniffelWidget() {
       const msg = JSON.parse(e.data)
       if (msg.type !== "kniffel") return
       setGame(msg.payload.game)
+      if (msg.payload.type === "finished") loadScores()
     }
     return () => es.close()
   }, [load])
 
   useEffect(() => {
-    const onVisible = () => { if (document.visibilityState === "visible") load() }
+    const onVisible = () => { if (document.visibilityState === "visible") { load(); loadScores() } }
     document.addEventListener("visibilitychange", onVisible)
     return () => document.removeEventListener("visibilitychange", onVisible)
-  }, [load])
+  }, [load, loadScores])
 
   // Reset held when a new turn starts
   useEffect(() => {
@@ -434,9 +443,32 @@ export default function KniffelWidget() {
     </div>
   )
 
+  const scoreCard = winScores && (
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-base">🏆</span>
+        <h2 className="text-sm font-semibold text-gray-700">Kniffel Spielstand</h2>
+      </div>
+      <div className="flex items-center justify-center gap-6">
+        <div className="flex flex-col items-center gap-1">
+          <div className="w-4 h-4 rounded-full bg-blue-500" />
+          <span className="text-xs text-gray-500">Sebastian</span>
+          <span className="text-3xl font-bold text-blue-600">{winScores.Sebastian}</span>
+        </div>
+        <div className="text-2xl font-light text-gray-300">:</div>
+        <div className="flex flex-col items-center gap-1">
+          <div className="w-4 h-4 rounded-full bg-rose-500" />
+          <span className="text-xs text-gray-500">Tina</span>
+          <span className="text-3xl font-bold text-rose-500">{winScores.Tina}</span>
+        </div>
+      </div>
+    </div>
+  )
+
   return (
     <>
       {card}
+      {scoreCard}
       {modal}
     </>
   )

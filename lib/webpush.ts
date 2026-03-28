@@ -1,16 +1,28 @@
 import webpush from "web-push"
 import { prisma } from "@/lib/prisma"
 
-export async function sendPushToAll(title: string, body: string, excludeEndpoint?: string) {
+interface SendOptions {
+  standAloneOnly?: boolean  // if true, only send to PWA installations (not browser tabs)
+}
+
+export async function sendPushToAll(
+  title: string,
+  body: string,
+  excludeEndpoint?: string,
+  options?: SendOptions
+) {
   if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) return
   webpush.setVapidDetails(
     "mailto:" + (process.env.VAPID_EMAIL ?? "admin@example.com"),
     process.env.VAPID_PUBLIC_KEY,
     process.env.VAPID_PRIVATE_KEY
   )
-  const allSubs = await prisma.pushSubscription.findMany()
-  const subs = excludeEndpoint ? allSubs.filter(s => s.endpoint !== excludeEndpoint) : allSubs
+
+  let subs = await prisma.pushSubscription.findMany()
+  if (excludeEndpoint) subs = subs.filter(s => s.endpoint !== excludeEndpoint)
+  if (options?.standAloneOnly) subs = subs.filter(s => s.isStandalone)
   if (subs.length === 0) return
+
   const payload = JSON.stringify({ title, body })
   const dead: string[] = []
 

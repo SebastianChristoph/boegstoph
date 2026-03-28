@@ -6,28 +6,34 @@ export default function PushSubscriber() {
   useEffect(() => {
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) return
 
+    const isStandalone =
+      window.matchMedia("(display-mode: standalone)").matches ||
+      (navigator as unknown as { standalone?: boolean }).standalone === true
+
     async function subscribe() {
       try {
         const reg = await navigator.serviceWorker.ready
-        const existing = await reg.pushManager.getSubscription()
-        if (existing) return // already subscribed
+        let sub = await reg.pushManager.getSubscription()
 
-        const res = await fetch("/api/push/vapid-key")
-        const { publicKey } = await res.json()
-        if (!publicKey) return
+        if (!sub) {
+          const res = await fetch("/api/push/vapid-key")
+          const { publicKey } = await res.json()
+          if (!publicKey) return
 
-        const permission = await Notification.requestPermission()
-        if (permission !== "granted") return
+          const permission = await Notification.requestPermission()
+          if (permission !== "granted") return
 
-        const sub = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource,
-        })
+          sub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(publicKey) as BufferSource,
+          })
+        }
 
+        // Always upsert so isStandalone stays up-to-date
         await fetch("/api/push/subscribe", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(sub.toJSON()),
+          body: JSON.stringify({ ...sub.toJSON(), isStandalone }),
         })
       } catch {
         // silently ignore — push is optional

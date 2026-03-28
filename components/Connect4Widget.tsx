@@ -166,7 +166,7 @@ export default function Connect4Widget() {
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
           <div className="flex items-center gap-2 mb-3">
             <span className="text-base">🏆</span>
-            <h2 className="text-sm font-semibold text-gray-700">Ewiger Spielstand</h2>
+            <h2 className="text-sm font-semibold text-gray-700">4-Gewinnt Spielstand</h2>
           </div>
           <div className="flex items-center justify-center gap-6">
             <div className="flex flex-col items-center gap-1">

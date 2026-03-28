@@ -44,12 +44,14 @@ export async function POST(req: NextRequest) {
   if (bothFull) {
     const sebTotal = calcTotal(scores.Sebastian)
     const tinaTotal = calcTotal(scores.Tina)
-    const winner = sebTotal > tinaTotal ? "Sebastian" : tinaTotal > sebTotal ? "Tina" : "Unentschieden"
-    const msg = winner === "Unentschieden" ? "Unentschieden! 🤝" : `${winner} gewinnt Kniffel! 🎉`
-    sendPushToAll("🎲 Kniffel", msg, excludeEndpoint).catch(() => {})
-    broadcast("kniffel", { type: "finished", winner, game: updated })
+    const winner = sebTotal > tinaTotal ? "Sebastian" : tinaTotal > sebTotal ? "Tina" : "draw"
+    // Update winner field
+    await prisma.kniffelGame.update({ where: { id: updated.id }, data: { winner } })
+    const msg = winner === "draw" ? "Unentschieden! 🤝" : `${winner} gewinnt Kniffel! 🎉`
+    sendPushToAll("🎲 Kniffel", msg, excludeEndpoint, { standAloneOnly: true }).catch(() => {})
+    broadcast("kniffel", { type: "finished", winner, game: { ...updated, winner } })
   } else {
-    sendPushToAll("🎲 Kniffel", `${player} hat gewertet. ${next} ist dran!`, excludeEndpoint).catch(() => {})
+    sendPushToAll("🎲 Kniffel", `${player} hat gewertet. ${next} ist dran!`, excludeEndpoint, { standAloneOnly: true }).catch(() => {})
     broadcast("kniffel", { type: "score", game: updated })
   }
 

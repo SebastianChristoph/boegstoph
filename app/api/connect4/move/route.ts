@@ -52,13 +52,13 @@ export async function POST(req: NextRequest) {
     const msg = winner === "draw"
       ? `Unentschieden! 🤝`
       : `${winner} gewinnt! 🎉`
-    sendPushToAll("🎮 4-Gewinnt", msg, excludeEndpoint).catch(() => {})
+    sendPushToAll("🎮 4-Gewinnt", msg, excludeEndpoint, { standAloneOnly: true }).catch(() => {})
     broadcast("connect4", { type: "win", winner, game: updated })
     return NextResponse.json({ game: updated })
   }
 
   const next = updated.currentPlayer
-  sendPushToAll("🎮 4-Gewinnt", `${game.currentPlayer} hat gezogen. ${next} ist am Zug!`, excludeEndpoint).catch(() => {})
+  sendPushToAll("🎮 4-Gewinnt", `${game.currentPlayer} hat gezogen. ${next} ist am Zug!`, excludeEndpoint, { standAloneOnly: true }).catch(() => {})
   broadcast("connect4", { type: "move", game: updated })
   return NextResponse.json({ game: updated })
 }

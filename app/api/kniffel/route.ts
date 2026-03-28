@@ -30,7 +30,7 @@ export async function POST() {
     },
   })
 
-  sendPushToAll("🎲 Kniffel", `Neues Spiel! ${first} beginnt.`).catch(() => {})
+  sendPushToAll("🎲 Kniffel", `Neues Spiel! ${first} beginnt.`, undefined, { standAloneOnly: true }).catch(() => {})
   broadcast("kniffel", { type: "new", game })
   return NextResponse.json(game, { status: 201 })
 }

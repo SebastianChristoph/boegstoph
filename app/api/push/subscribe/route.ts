@@ -7,11 +7,11 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return new NextResponse("Unauthorized", { status: 401 })
 
-  const { endpoint, keys } = await req.json()
+  const { endpoint, keys, isStandalone } = await req.json()
   await prisma.pushSubscription.upsert({
     where: { endpoint },
-    create: { endpoint, p256dh: keys.p256dh, auth: keys.auth },
-    update: { p256dh: keys.p256dh, auth: keys.auth },
+    create: { endpoint, p256dh: keys.p256dh, auth: keys.auth, isStandalone: !!isStandalone },
+    update: { p256dh: keys.p256dh, auth: keys.auth, isStandalone: !!isStandalone },
   })
   return new NextResponse(null, { status: 201 })
 }
