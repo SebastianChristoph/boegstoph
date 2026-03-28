@@ -2,6 +2,7 @@ import Link from "next/link"
 import CalendarWidget from "@/components/CalendarWidget"
 import DashboardStats from "@/components/DashboardStats"
 import Connect4Widget from "@/components/Connect4Widget"
+import KniffelWidget from "@/components/KniffelWidget"
 
 export default function DashboardPage() {
   const today = new Date()
@@ -30,6 +31,10 @@ export default function DashboardPage() {
       </div>
 
       <Connect4Widget />
+
+      <div className="mt-4 space-y-4">
+        <KniffelWidget />
+      </div>
 
       <Link href="/home"
         className="flex items-center gap-4 bg-primary-600 hover:bg-primary-700 active:scale-95 transition-all text-white rounded-2xl p-5 mb-8 shadow-sm">

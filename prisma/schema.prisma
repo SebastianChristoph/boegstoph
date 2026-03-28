@@ -166,6 +166,18 @@ model ConnectFourGame {
   updatedAt     DateTime @updatedAt
 }
 
+model KniffelGame {
+  id            String   @id @default(cuid())
+  status        String   @default("active")        // "active" | "finished"
+  currentPlayer String                              // "Sebastian" | "Tina"
+  scores        String                              // JSON: { Sebastian: ScoreCard, Tina: ScoreCard }
+  dice          String   @default("[0,0,0,0,0]")   // JSON: current dice [1-6], 0 = not yet rolled
+  held          String   @default("[false,false,false,false,false]") // JSON: which dice are held
+  rollsLeft     Int      @default(3)               // 3=new turn, 0=must score
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
 model GardenThermometerReading {
   id          String   @id @default(cuid())
   timestamp   DateTime @unique
