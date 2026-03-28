@@ -88,11 +88,11 @@ function ScoreCell({ value, preview, isAvailable, onClick }: {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
-interface Scores { Sebastian: number; Tina: number }
+interface WinScores { Sebastian: number; Tina: number }
 
 export default function KniffelWidget() {
   const [game, setGame] = useState<KniffelGameData | null | undefined>(undefined)
-  const [winScores, setWinScores] = useState<Scores | null>(null)
+  const [winScores, setWinScores] = useState<WinScores | null>(null)
   const [open, setOpen] = useState(false)
   const [localHeld, setLocalHeld] = useState<boolean[]>([false, false, false, false, false])
   const [rolling, setRolling] = useState(false)
