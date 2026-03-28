@@ -48,11 +48,11 @@ export function calcScore(dice: number[], category: Category): number {
     case "fullhouse":
       return counts.some(c => c === 3) && counts.some(c => c === 2) ? 25 : 0
     case "kleineStrasse": {
-      const unique = [...new Set(dice)].sort((a, b) => a - b)
+      const unique = Array.from(new Set(dice)).sort((a, b) => a - b)
       return [[1, 2, 3, 4], [2, 3, 4, 5], [3, 4, 5, 6]].some(s => s.every(n => unique.includes(n))) ? 30 : 0
     }
     case "grosseStrasse": {
-      const sorted = [...new Set(dice)].sort((a, b) => a - b).join("")
+      const sorted = Array.from(new Set(dice)).sort((a, b) => a - b).join("")
       return sorted === "12345" || sorted === "23456" ? 40 : 0
     }
     case "kniffel": return counts.some(c => c === 5) ? 50 : 0
