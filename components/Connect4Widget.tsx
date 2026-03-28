@@ -13,6 +13,12 @@ interface C4Game {
   currentPlayer: string
   winner: string | null
   status: string
+  lastMove: number | null
+}
+
+interface Scores {
+  Sebastian: number
+  Tina: number
 }
 
 const PLAYER_BG: Record<string, string> = {
@@ -30,15 +36,21 @@ const PLAYER_STATUS_BG: Record<string, string> = {
 
 export default function Connect4Widget() {
   const [game, setGame] = useState<C4Game | null | undefined>(undefined)
+  const [scores, setScores] = useState<Scores | null>(null)
   const [open, setOpen] = useState(false)
   const [dropping, setDropping] = useState(false)
+
+  const loadScores = useCallback(async () => {
+    const res = await fetch("/api/connect4/scores")
+    if (res.ok) setScores(await res.json())
+  }, [])
 
   const load = useCallback(async () => {
     const res = await fetch("/api/connect4")
     if (res.ok) setGame(await res.json())
   }, [])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => { load(); loadScores() }, [load, loadScores])
 
   useEffect(() => {
     const es = new EventSource("/api/events")
@@ -49,16 +61,17 @@ export default function Connect4Widget() {
       const p = msg.payload
       if (p.type === "move" || p.type === "new" || p.type === "win") {
         setGame(p.game)
+        if (p.type === "win") loadScores()
       }
     }
     return () => es.close()
-  }, [load])
+  }, [load, loadScores])
 
   useEffect(() => {
-    const onVisible = () => { if (document.visibilityState === "visible") load() }
+    const onVisible = () => { if (document.visibilityState === "visible") { load(); loadScores() } }
     document.addEventListener("visibilitychange", onVisible)
     return () => document.removeEventListener("visibilitychange", onVisible)
-  }, [load])
+  }, [load, loadScores])
 
   async function startGame() {
     const res = await fetch("/api/connect4", { method: "POST" })
@@ -83,10 +96,12 @@ export default function Connect4Widget() {
     if (res.ok) {
       const data = await res.json()
       setGame(data.game)
+      if (data.game.status === "finished") loadScores()
     }
   }
 
   const board: Cell[] = game ? JSON.parse(game.board) : Array(COLS * ROWS).fill("")
+  const lastMove = game?.lastMove ?? null
 
   const statusText = !game
     ? "Kein Spiel aktiv"
@@ -94,30 +109,28 @@ export default function Connect4Widget() {
     ? (game.winner === "draw" ? "Unentschieden! 🤝" : `${game.winner} gewinnt! 🎉`)
     : `${game.currentPlayer} ist am Zug`
 
-  function MiniCell({ cell }: { cell: Cell }) {
+  function MiniCell({ cell, idx }: { cell: Cell; idx: number }) {
+    const isLast = lastMove === idx && cell !== ""
     return (
-      <div className={`w-3 h-3 rounded-full ${cell ? PLAYER_BG[cell] : "bg-gray-200"}`} />
+      <div className={`w-3 h-3 rounded-full ${cell ? PLAYER_BG[cell] : "bg-gray-200"} ${isLast ? "ring-1 ring-white ring-offset-1 ring-offset-transparent" : ""}`} />
     )
   }
 
-  function BigCell({ cell }: { cell: Cell }) {
+  function BigCell({ cell, idx }: { cell: Cell; idx: number }) {
+    const isLast = lastMove === idx && cell !== ""
     return (
-      <div className={`w-9 h-9 rounded-full transition-all ${cell ? `${PLAYER_BG[cell]} shadow-sm` : "bg-gray-100 border border-gray-200"}`} />
+      <div className={`w-9 h-9 rounded-full transition-all ${
+        cell
+          ? `${PLAYER_BG[cell]} shadow-inner${isLast ? " ring-2 ring-white ring-offset-2 ring-offset-indigo-700" : ""}`
+          : "bg-indigo-900/70"
+      }`} />
     )
   }
 
   const miniBoard = (
     <div className="grid gap-0.5" style={{ gridTemplateColumns: `repeat(${COLS}, 1fr)`, display: "inline-grid" }}>
       {Array.from({ length: ROWS * COLS }, (_, i) => (
-        <MiniCell key={i} cell={board[i]} />
-      ))}
-    </div>
-  )
-
-  const fullBoard = (
-    <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${COLS}, 1fr)`, display: "inline-grid" }}>
-      {Array.from({ length: ROWS * COLS }, (_, i) => (
-        <BigCell key={i} cell={board[i]} />
+        <MiniCell key={i} cell={board[i]} idx={i} />
       ))}
     </div>
   )
@@ -147,6 +160,29 @@ export default function Connect4Widget() {
           {statusText}
         </p>
       </div>
+
+      {/* Scoreboard card */}
+      {scores && (
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-base">🏆</span>
+            <h2 className="text-sm font-semibold text-gray-700">Ewiger Spielstand</h2>
+          </div>
+          <div className="flex items-center justify-center gap-6">
+            <div className="flex flex-col items-center gap-1">
+              <div className="w-4 h-4 rounded-full bg-blue-500" />
+              <span className="text-xs text-gray-500">Sebastian</span>
+              <span className="text-3xl font-bold text-blue-600">{scores.Sebastian}</span>
+            </div>
+            <div className="text-2xl font-light text-gray-300">:</div>
+            <div className="flex flex-col items-center gap-1">
+              <div className="w-4 h-4 rounded-full bg-rose-500" />
+              <span className="text-xs text-gray-500">Tina</span>
+              <span className="text-3xl font-bold text-rose-500">{scores.Tina}</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal */}
       {open && (
@@ -209,7 +245,7 @@ export default function Connect4Widget() {
                   <div className="bg-indigo-700 rounded-xl p-2">
                     <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${COLS}, 1fr)`, display: "inline-grid" }}>
                       {Array.from({ length: ROWS * COLS }, (_, i) => (
-                        <div key={i} className={`w-9 h-9 rounded-full transition-all ${board[i] ? `${PLAYER_BG[board[i]]} shadow-inner` : "bg-indigo-900/70"}`} />
+                        <BigCell key={i} cell={board[i]} idx={i} />
                       ))}
                     </div>
                   </div>

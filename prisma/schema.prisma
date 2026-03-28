@@ -161,6 +161,7 @@ model ConnectFourGame {
   currentPlayer String   // "Sebastian" | "Tina"
   winner        String?  // null | "Sebastian" | "Tina" | "draw"
   status        String   @default("active") // "active" | "finished"
+  lastMove      Int?     // cell index (row*7+col) of last placed piece
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }

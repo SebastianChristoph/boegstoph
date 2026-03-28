@@ -28,6 +28,15 @@ export async function POST(req: NextRequest) {
   const winner = checkWinner(nextBoard)
   const finished = winner !== null
 
+  // Find the cell index where the piece landed (lowest empty row in col)
+  let lastMove: number | undefined
+  for (let row = 5; row >= 0; row--) {
+    if (board[row * 7 + col] === "") {
+      lastMove = row * 7 + col
+      break
+    }
+  }
+
   const updated = await prisma.connectFourGame.update({
     where: { id: game.id },
     data: {
@@ -35,6 +44,7 @@ export async function POST(req: NextRequest) {
       currentPlayer: finished ? game.currentPlayer : otherPlayer(game.currentPlayer as Player),
       winner: winner ?? undefined,
       status: finished ? "finished" : "active",
+      lastMove: lastMove ?? null,
     },
   })
 
