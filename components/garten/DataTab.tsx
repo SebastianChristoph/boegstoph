@@ -320,12 +320,12 @@ export default function DataTab() {
               <div className="bg-cyan-50 rounded-xl p-3">
                 <div className="text-[11px] text-cyan-500 mb-1">Feuchteste Messung</div>
                 <div className="text-xl font-bold text-cyan-600">{stats.records.maxHumidity.value.toFixed(1)}%</div>
-                <div className="text-[10px] text-gray-400 mt-1">{fmtDate(stats.records.maxHumidity.timestamp)}</div>
+                <div className="text-[10px] text-gray-400 mt-1">{fmtDate(stats.records.maxHumidity.timestamp)} · {fmtTime(stats.records.maxHumidity.timestamp)}</div>
               </div>
               <div className="bg-yellow-50 rounded-xl p-3">
                 <div className="text-[11px] text-yellow-500 mb-1">Trockenste Messung</div>
                 <div className="text-xl font-bold text-yellow-600">{stats.records.minHumidity.value.toFixed(1)}%</div>
-                <div className="text-[10px] text-gray-400 mt-1">{fmtDate(stats.records.minHumidity.timestamp)}</div>
+                <div className="text-[10px] text-gray-400 mt-1">{fmtDate(stats.records.minHumidity.timestamp)} · {fmtTime(stats.records.minHumidity.timestamp)}</div>
               </div>
             </div>
           </div>
