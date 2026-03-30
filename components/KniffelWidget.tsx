@@ -205,10 +205,11 @@ export default function KniffelWidget() {
     ? `${player} muss jetzt werten`
     : `${player} ist am Zug`
 
-  const lastMoveData = game?.lastMove ? JSON.parse(game.lastMove) as { player: string; category: Category; score: number } : null
+  const lastMoveData = game?.lastMove ? JSON.parse(game.lastMove) as { player: string; category: Category; score: number; dice: number[] } : null
   const lastMoveText = lastMoveData && !isFinished && lastMoveData.player !== player
     ? `${lastMoveData.player}: ${CATEGORY_LABELS[lastMoveData.category]} (${lastMoveData.score})`
     : null
+  const lastMoveDice = lastMoveData && !isFinished && lastMoveData.player !== player ? lastMoveData.dice : null
 
   // ── Dashboard card ────────────────────────────────────────────────────────
 
@@ -261,7 +262,9 @@ export default function KniffelWidget() {
         {statusText}
       </p>
       {lastMoveText && (
-        <p className="text-[10px] text-center text-gray-400 mt-0.5">Letzter Zug: {lastMoveText}</p>
+        <p className="text-[10px] text-center text-gray-400 mt-0.5">
+          Letzter Zug: {lastMoveText}{lastMoveDice && <span className="ml-1">{lastMoveDice.map(d => DICE_FACES[d]).join(" ")}</span>}
+        </p>
       )}
     </div>
   )
@@ -308,7 +311,12 @@ export default function KniffelWidget() {
                   </span>
                 )}
                 {lastMoveText && (
-                  <div className="text-xs font-normal opacity-60 mt-0.5">Letzter Zug: {lastMoveText}</div>
+                  <div className="text-xs font-normal opacity-60 mt-0.5">
+                    Letzter Zug: {lastMoveText}
+                    {lastMoveDice && (
+                      <span className="ml-1">{lastMoveDice.map(d => DICE_FACES[d]).join(" ")}</span>
+                    )}
+                  </div>
                 )}
               </div>
 

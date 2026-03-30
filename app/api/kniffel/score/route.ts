@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
       dice: JSON.stringify([0, 0, 0, 0, 0]),
       held: JSON.stringify([false, false, false, false, false]),
       rollsLeft: bothFull ? 0 : 3,
-      lastMove: JSON.stringify({ player, category, score: scored }),
+      lastMove: JSON.stringify({ player, category, score: scored, dice }),
     },
   })
 
