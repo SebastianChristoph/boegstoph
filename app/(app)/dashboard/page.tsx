@@ -35,21 +35,19 @@ export default function DashboardPage() {
         <CalendarWidget days={2} />
       </div>
 
-      <Connect4Widget />
-
-      <div className="mt-4 space-y-4">
+      <div className="space-y-4 mb-8">
+        <Connect4Widget />
         <KniffelWidget />
+        <Link href="/home"
+          className="flex items-center gap-4 bg-primary-600 hover:bg-primary-700 active:scale-95 transition-all text-white rounded-2xl p-5 shadow-sm">
+          <img src="/apple-touch-icon.png" alt="" className="w-10 h-10 rounded-xl shrink-0" />
+          <div>
+            <div className="font-semibold">Home-Ansicht</div>
+            <div className="text-sm text-blue-100">Foto-Diashow für das Tablet</div>
+          </div>
+          <span className="ml-auto text-blue-200 text-xl">›</span>
+        </Link>
       </div>
-
-      <Link href="/home"
-        className="flex items-center gap-4 bg-primary-600 hover:bg-primary-700 active:scale-95 transition-all text-white rounded-2xl p-5 mb-8 shadow-sm">
-        <img src="/apple-touch-icon.png" alt="" className="w-10 h-10 rounded-xl shrink-0" />
-        <div>
-          <div className="font-semibold">Home-Ansicht</div>
-          <div className="text-sm text-blue-100">Foto-Diashow für das Tablet</div>
-        </div>
-        <span className="ml-auto text-blue-200 text-xl">›</span>
-      </Link>
 
     </div>
   )

@@ -299,6 +299,21 @@ export default function KniffelWidget() {
           Letzter Zug: {lastMoveText}{lastMoveDice && <span className="ml-1">{lastMoveDice.map(d => DICE_FACES[d]).join(" ")}</span>}
         </p>
       )}
+
+      {winScores && (
+        <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-center gap-4">
+          <span className="text-xs">🏆</span>
+          <div className="flex items-center gap-1.5">
+            <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+            <span className="text-sm font-bold text-blue-600">{winScores.Sebastian}</span>
+          </div>
+          <span className="text-xs text-gray-300">:</span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-sm font-bold text-rose-500">{winScores.Tina}</span>
+            <div className="w-2.5 h-2.5 rounded-full bg-rose-500" />
+          </div>
+        </div>
+      )}
     </div>
   )
 
@@ -567,7 +582,6 @@ export default function KniffelWidget() {
   return (
     <>
       {card}
-      {scoreCard}
       {modal}
     </>
   )

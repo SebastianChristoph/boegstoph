@@ -173,30 +173,21 @@ export default function Connect4Widget() {
         <p className={`text-xs text-center font-medium ${game?.status === "finished" ? "text-green-600" : "text-gray-500"}`}>
           {statusText}
         </p>
+        {scores && (
+          <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-center gap-4">
+            <span className="text-xs">🏆</span>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+              <span className="text-sm font-bold text-blue-600">{scores.Sebastian}</span>
+            </div>
+            <span className="text-xs text-gray-300">:</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm font-bold text-rose-500">{scores.Tina}</span>
+              <div className="w-2.5 h-2.5 rounded-full bg-rose-500" />
+            </div>
+          </div>
+        )}
       </div>
-
-      {/* Scoreboard card */}
-      {scores && (
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-base">🏆</span>
-            <h2 className="text-sm font-semibold text-gray-700">4-Gewinnt Spielstand</h2>
-          </div>
-          <div className="flex items-center justify-center gap-6">
-            <div className="flex flex-col items-center gap-1">
-              <div className="w-4 h-4 rounded-full bg-blue-500" />
-              <span className="text-xs text-gray-500">Sebastian</span>
-              <span className="text-3xl font-bold text-blue-600">{scores.Sebastian}</span>
-            </div>
-            <div className="text-2xl font-light text-gray-300">:</div>
-            <div className="flex flex-col items-center gap-1">
-              <div className="w-4 h-4 rounded-full bg-rose-500" />
-              <span className="text-xs text-gray-500">Tina</span>
-              <span className="text-3xl font-bold text-rose-500">{scores.Tina}</span>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Modal */}
       {open && (
