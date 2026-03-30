@@ -163,6 +163,7 @@ model ConnectFourGame {
   winner        String?  // null | "Sebastian" | "Tina" | "draw"
   status        String   @default("active") // "active" | "finished"
   lastMove      Int?     // cell index (row*7+col) of last placed piece
+  messages      String   @default("[]")  // JSON: { player, text, ts }[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
@@ -177,6 +178,7 @@ model KniffelGame {
   held          String   @default("[false,false,false,false,false]") // JSON: which dice are held
   rollsLeft     Int      @default(3)               // 3=new turn, 0=must score
   lastMove      String?                             // JSON: { player, category, score } — last scored move
+  messages      String   @default("[]")            // JSON: { player, text, ts }[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }

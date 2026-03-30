@@ -14,7 +14,10 @@ interface C4Game {
   winner: string | null
   status: string
   lastMove: number | null
+  messages: string // JSON: { player, text, ts }[]
 }
+
+type ChatMsg = { player: string; text: string; ts: string }
 
 interface Scores {
   Sebastian: number
@@ -39,6 +42,7 @@ export default function Connect4Widget() {
   const [scores, setScores] = useState<Scores | null>(null)
   const [open, setOpen] = useState(false)
   const [dropping, setDropping] = useState(false)
+  const [chatText, setChatText] = useState("")
 
   const loadScores = useCallback(async () => {
     const res = await fetch("/api/connect4/scores")
@@ -59,7 +63,7 @@ export default function Connect4Widget() {
       const msg = JSON.parse(e.data)
       if (msg.type !== "connect4") return
       const p = msg.payload
-      if (p.type === "move" || p.type === "new" || p.type === "win") {
+      if (p.type === "move" || p.type === "new" || p.type === "win" || p.type === "chat") {
         setGame(p.game)
         if (p.type === "win") loadScores()
       }
@@ -98,6 +102,16 @@ export default function Connect4Widget() {
       setGame(data.game)
       if (data.game.status === "finished") loadScores()
     }
+  }
+
+  async function sendC4Chat() {
+    if (!chatText.trim()) return
+    const res = await fetch("/api/connect4/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: chatText.trim() }),
+    })
+    if (res.ok) { setGame(await res.json()); setChatText("") }
   }
 
   const board: Cell[] = game ? JSON.parse(game.board) : Array(COLS * ROWS).fill("")
@@ -262,6 +276,46 @@ export default function Connect4Widget() {
                     </button>
                   </div>
                 )}
+
+                {/* Chat */}
+                {(() => {
+                  const chatMessages: ChatMsg[] = JSON.parse(game.messages ?? "[]")
+                  const chatSender = game.currentPlayer === "Sebastian" ? "Tina" : "Sebastian"
+                  return (
+                    <div className="border-t border-gray-100 pt-3 mt-3">
+                      <div className="max-h-28 overflow-y-auto space-y-1.5 mb-2">
+                        {chatMessages.length === 0
+                          ? <p className="text-[11px] text-gray-300 text-center italic">Noch keine Nachrichten</p>
+                          : chatMessages.map((m, i) => (
+                            <div key={i} className="flex items-start gap-1.5">
+                              <span className={`text-[11px] font-semibold shrink-0 ${m.player === "Sebastian" ? "text-blue-600" : "text-rose-500"}`}>
+                                {m.player}:
+                              </span>
+                              <span className="text-[11px] text-gray-600 break-words min-w-0">{m.text}</span>
+                            </div>
+                          ))
+                        }
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={chatText}
+                          onChange={e => setChatText(e.target.value)}
+                          onKeyDown={e => { if (e.key === "Enter") sendC4Chat() }}
+                          placeholder={`Nachricht als ${chatSender}…`}
+                          className="flex-1 text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-300"
+                        />
+                        <button
+                          onClick={sendC4Chat}
+                          disabled={!chatText.trim()}
+                          className="text-xs px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium text-gray-600 disabled:opacity-40 shrink-0"
+                        >
+                          Senden
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })()}
 
                 {/* Legend */}
                 <div className="flex justify-center gap-5 mt-3 text-xs text-gray-500">

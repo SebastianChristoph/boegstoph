@@ -17,7 +17,10 @@ interface KniffelGameData {
   held: string     // JSON: boolean[5]
   rollsLeft: number
   lastMove: string | null  // JSON: { player, category, score }
+  messages: string // JSON: { player, text, ts }[]
 }
+
+type ChatMsg = { player: string; text: string; ts: string }
 
 type Scores = { Sebastian: ScoreCard; Tina: ScoreCard }
 
@@ -100,6 +103,7 @@ export default function KniffelWidget() {
   const [animDice, setAnimDice] = useState<number[]>([1, 1, 1, 1, 1])
   const animIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [scoring, setScoring] = useState(false)
+  const [chatText, setChatText] = useState("")
 
   const loadScores = useCallback(async () => {
     const res = await fetch("/api/kniffel/scores")
@@ -199,6 +203,16 @@ export default function KniffelWidget() {
     setScoring(false)
   }
 
+  async function sendKniffelChat() {
+    if (!chatText.trim()) return
+    const res = await fetch("/api/kniffel/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: chatText.trim() }),
+    })
+    if (res.ok) { setGame(await res.json()); setChatText("") }
+  }
+
   if (game === undefined) return null
 
   const dice: number[] = game ? JSON.parse(game.dice) : [0, 0, 0, 0, 0]
@@ -227,6 +241,8 @@ export default function KniffelWidget() {
     ? `${lastMoveData.player}: ${CATEGORY_LABELS[lastMoveData.category]} (${lastMoveData.score})`
     : null
   const lastMoveDice = lastMoveData && !isFinished && lastMoveData.player !== player ? lastMoveData.dice : null
+  const chatMessages: ChatMsg[] = game ? JSON.parse(game.messages ?? "[]") : []
+  const chatSender = player === "Sebastian" ? "Tina" : "Sebastian"
 
   // ── Dashboard card ────────────────────────────────────────────────────────
 
@@ -467,6 +483,40 @@ export default function KniffelWidget() {
                   Neues Spiel 🎲
                 </button>
               )}
+
+              {/* Chat */}
+              <div className="border-t border-gray-100 pt-3">
+                <div className="max-h-28 overflow-y-auto space-y-1.5 mb-2">
+                  {chatMessages.length === 0
+                    ? <p className="text-[11px] text-gray-300 text-center italic">Noch keine Nachrichten</p>
+                    : chatMessages.map((m, i) => (
+                      <div key={i} className="flex items-start gap-1.5">
+                        <span className={`text-[11px] font-semibold shrink-0 ${m.player === "Sebastian" ? "text-blue-600" : "text-rose-500"}`}>
+                          {m.player}:
+                        </span>
+                        <span className="text-[11px] text-gray-600 break-words min-w-0">{m.text}</span>
+                      </div>
+                    ))
+                  }
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={chatText}
+                    onChange={e => setChatText(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") sendKniffelChat() }}
+                    placeholder={`Nachricht als ${chatSender}…`}
+                    className="flex-1 text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-300"
+                  />
+                  <button
+                    onClick={sendKniffelChat}
+                    disabled={!chatText.trim()}
+                    className="text-xs px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium text-gray-600 disabled:opacity-40 shrink-0"
+                  >
+                    Senden
+                  </button>
+                </div>
+              </div>
 
               {/* Legend */}
               <div className="flex justify-center gap-5 text-xs text-gray-400">
