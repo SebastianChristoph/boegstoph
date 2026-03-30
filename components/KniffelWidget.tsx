@@ -73,9 +73,9 @@ function ScoreCell({ value, preview, isAvailable, onClick }: {
       <td className="text-right py-0.5 px-1 w-12">
         <button
           onClick={onClick}
-          className={`text-xs font-semibold px-1.5 py-0.5 rounded-lg w-full text-right transition-colors
+          className={`text-sm font-bold px-1.5 py-0.5 rounded-lg w-full text-right transition-colors
             ${preview > 0
-              ? "text-primary-700 bg-primary-50 hover:bg-primary-100 active:bg-primary-200"
+              ? "text-green-700 bg-green-100 hover:bg-green-200 active:bg-green-300"
               : "text-orange-600 bg-orange-50 hover:bg-orange-100 active:bg-orange-200"
             }`}
         >
@@ -382,23 +382,26 @@ export default function KniffelWidget() {
                     </thead>
                     <tbody>
                       {/* Upper section */}
-                      {UPPER_CATEGORIES.map((cat) => (
-                        <tr key={cat} className="border-b border-gray-50 hover:bg-gray-50/50">
-                          <td className="py-0.5 px-3 text-xs text-gray-600">{CATEGORY_LABELS[cat]}</td>
-                          <ScoreCell
-                            value={scores.Sebastian[cat]}
-                            preview={player === "Sebastian" && canScore ? calcScore(dice, cat) : undefined}
-                            isAvailable={player === "Sebastian" && canScore && scores.Sebastian[cat] === null}
-                            onClick={() => scoreCategory(cat)}
-                          />
-                          <ScoreCell
-                            value={scores.Tina[cat]}
-                            preview={player === "Tina" && canScore ? calcScore(dice, cat) : undefined}
-                            isAvailable={player === "Tina" && canScore && scores.Tina[cat] === null}
-                            onClick={() => scoreCategory(cat)}
-                          />
-                        </tr>
-                      ))}
+                      {UPPER_CATEGORIES.map((cat) => {
+                        const isScored = !!player && scores[player][cat] !== null
+                        return (
+                          <tr key={cat} className={`border-b border-gray-50 ${isScored ? "bg-gray-100" : "hover:bg-gray-50/50"}`}>
+                            <td className={`py-0.5 px-3 text-xs ${isScored ? "text-gray-400" : "text-gray-600"}`}>{CATEGORY_LABELS[cat]}</td>
+                            <ScoreCell
+                              value={scores.Sebastian[cat]}
+                              preview={player === "Sebastian" && canScore ? calcScore(dice, cat) : undefined}
+                              isAvailable={player === "Sebastian" && canScore && scores.Sebastian[cat] === null}
+                              onClick={() => scoreCategory(cat)}
+                            />
+                            <ScoreCell
+                              value={scores.Tina[cat]}
+                              preview={player === "Tina" && canScore ? calcScore(dice, cat) : undefined}
+                              isAvailable={player === "Tina" && canScore && scores.Tina[cat] === null}
+                              onClick={() => scoreCategory(cat)}
+                            />
+                          </tr>
+                        )
+                      })}
                       {/* Upper total + bonus */}
                       <tr className="bg-blue-50/60 border-b border-blue-100">
                         <td className="py-1 px-3 text-[11px] font-semibold text-gray-600">
@@ -418,23 +421,26 @@ export default function KniffelWidget() {
                         })}
                       </tr>
                       {/* Lower section */}
-                      {LOWER_CATEGORIES.map((cat) => (
-                        <tr key={cat} className="border-b border-gray-50 hover:bg-gray-50/50">
-                          <td className="py-0.5 px-3 text-xs text-gray-600">{CATEGORY_LABELS[cat]}</td>
-                          <ScoreCell
-                            value={scores.Sebastian[cat]}
-                            preview={player === "Sebastian" && canScore ? calcScore(dice, cat) : undefined}
-                            isAvailable={player === "Sebastian" && canScore && scores.Sebastian[cat] === null}
-                            onClick={() => scoreCategory(cat)}
-                          />
-                          <ScoreCell
-                            value={scores.Tina[cat]}
-                            preview={player === "Tina" && canScore ? calcScore(dice, cat) : undefined}
-                            isAvailable={player === "Tina" && canScore && scores.Tina[cat] === null}
-                            onClick={() => scoreCategory(cat)}
-                          />
-                        </tr>
-                      ))}
+                      {LOWER_CATEGORIES.map((cat) => {
+                        const isScored = !!player && scores[player][cat] !== null
+                        return (
+                          <tr key={cat} className={`border-b border-gray-50 ${isScored ? "bg-gray-100" : "hover:bg-gray-50/50"}`}>
+                            <td className={`py-0.5 px-3 text-xs ${isScored ? "text-gray-400" : "text-gray-600"}`}>{CATEGORY_LABELS[cat]}</td>
+                            <ScoreCell
+                              value={scores.Sebastian[cat]}
+                              preview={player === "Sebastian" && canScore ? calcScore(dice, cat) : undefined}
+                              isAvailable={player === "Sebastian" && canScore && scores.Sebastian[cat] === null}
+                              onClick={() => scoreCategory(cat)}
+                            />
+                            <ScoreCell
+                              value={scores.Tina[cat]}
+                              preview={player === "Tina" && canScore ? calcScore(dice, cat) : undefined}
+                              isAvailable={player === "Tina" && canScore && scores.Tina[cat] === null}
+                              onClick={() => scoreCategory(cat)}
+                            />
+                          </tr>
+                        )
+                      })}
                       {/* Total */}
                       <tr className="bg-gray-50">
                         <td className="py-2 px-3 text-xs font-bold text-gray-700">Gesamt</td>
