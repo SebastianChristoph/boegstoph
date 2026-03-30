@@ -388,12 +388,17 @@ export default function KniffelWidget() {
               {/* Scorecard */}
               {scores && (
                 <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
-                  <table className="w-full">
+                  <table className="w-full table-fixed">
+                    <colgroup>
+                      <col />
+                      <col className="w-14" />
+                      <col className="w-14" />
+                    </colgroup>
                     <thead>
                       <tr className="bg-gray-50 border-b border-gray-100">
                         <th className="text-left py-1.5 px-3 text-[11px] font-semibold text-gray-500">Kategorie</th>
-                        <th className="text-right py-1.5 px-2 text-[11px] font-semibold text-blue-600 w-12">Seb</th>
-                        <th className="text-right py-1.5 px-2 text-[11px] font-semibold text-rose-500 w-12">Tina</th>
+                        <th className={`text-right py-1.5 px-2 text-[11px] font-semibold w-14 ${player === "Sebastian" ? "text-blue-700 underline" : "text-blue-400"}`}>Seb</th>
+                        <th className={`text-right py-1.5 px-2 text-[11px] font-semibold w-14 ${player === "Tina" ? "text-rose-600 underline" : "text-rose-300"}`}>Tina</th>
                       </tr>
                     </thead>
                     <tbody>
