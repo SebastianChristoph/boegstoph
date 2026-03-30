@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import {
   CATEGORIES, UPPER_CATEGORIES, LOWER_CATEGORIES,
   CATEGORY_LABELS,
@@ -25,30 +25,30 @@ const DICE_FACES = ["", "⚀", "⚁", "⚂", "⚃", "⚄", "⚅"]
 
 // ── Die ────────────────────────────────────────────────────────────────────────
 
-function Die({ value, held, canToggle, onClick }: {
-  value: number; held: boolean; canToggle: boolean; onClick?: () => void
+function Die({ value, held, canToggle, rolling, onClick }: {
+  value: number; held: boolean; canToggle: boolean; rolling?: boolean; onClick?: () => void
 }) {
-  if (value === 0) {
+  if (value === 0 && !rolling) {
     return (
       <div className="w-11 h-11 rounded-xl bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center text-gray-300 text-xl select-none">
         ?
       </div>
     )
   }
+  const isAnimating = rolling && !held
   return (
     <button
       onClick={onClick}
-      disabled={!canToggle}
+      disabled={!canToggle || !!rolling}
       title={held ? "Festgehalten – klicken zum Lösen" : canToggle ? "Klicken zum Festhalten" : ""}
-      className={`w-11 h-11 rounded-xl flex items-center justify-center text-2xl transition-all select-none
-        ${held
-          ? "bg-amber-400 text-white border-2 border-amber-500 shadow-inner scale-95 cursor-pointer"
-          : canToggle
-          ? "bg-white border-2 border-gray-200 text-gray-800 shadow hover:border-primary-400 hover:shadow-md active:scale-95 cursor-pointer"
-          : "bg-white border-2 border-gray-200 text-gray-800 shadow cursor-default"
-        }`}
+      className={`w-11 h-11 rounded-xl flex items-center justify-center text-2xl select-none
+        ${isAnimating ? "bg-indigo-100 border-2 border-indigo-300 shadow-md animate-bounce" : "transition-all"}
+        ${!isAnimating && held ? "bg-amber-400 text-white border-2 border-amber-500 shadow-inner scale-95 cursor-pointer" : ""}
+        ${!isAnimating && !held && canToggle ? "bg-white border-2 border-gray-200 text-gray-800 shadow hover:border-primary-400 hover:shadow-md active:scale-95 cursor-pointer" : ""}
+        ${!isAnimating && !held && !canToggle ? "bg-white border-2 border-gray-200 text-gray-800 shadow cursor-default" : ""}
+      `}
     >
-      {DICE_FACES[value]}
+      {value > 0 ? DICE_FACES[value] : "🎲"}
     </button>
   )
 }
@@ -97,6 +97,8 @@ export default function KniffelWidget() {
   const [open, setOpen] = useState(false)
   const [localHeld, setLocalHeld] = useState<boolean[]>([false, false, false, false, false])
   const [rolling, setRolling] = useState(false)
+  const [animDice, setAnimDice] = useState<number[]>([1, 1, 1, 1, 1])
+  const animIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [scoring, setScoring] = useState(false)
 
   const loadScores = useCallback(async () => {
@@ -147,11 +149,26 @@ export default function KniffelWidget() {
   async function roll() {
     if (!game || rolling) return
     setRolling(true)
+
+    const currentDice: number[] = JSON.parse(game.dice)
+    animIntervalRef.current = setInterval(() => {
+      setAnimDice(localHeld.map((h, i) =>
+        h ? (currentDice[i] || 1) : (Math.ceil(Math.random() * 6))
+      ))
+    }, 80)
+
+    const startTime = Date.now()
     const res = await fetch("/api/kniffel/roll", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ held: localHeld }),
     })
+
+    const elapsed = Date.now() - startTime
+    if (elapsed < 2000) await new Promise(r => setTimeout(r, 2000 - elapsed))
+
+    if (animIntervalRef.current) { clearInterval(animIntervalRef.current); animIntervalRef.current = null }
+
     if (res.ok) {
       const data = await res.json()
       setGame(data.game)
@@ -324,12 +341,13 @@ export default function KniffelWidget() {
               {!isFinished && (
                 <div className="bg-indigo-50 rounded-2xl p-4">
                   <div className="flex gap-2 justify-center mb-3">
-                    {dice.map((d, i) => (
+                    {(rolling ? animDice : dice).map((d, i) => (
                       <Die
                         key={i}
                         value={d}
                         held={localHeld[i]}
                         canToggle={canToggleDice}
+                        rolling={rolling}
                         onClick={() => toggleHeld(i)}
                       />
                     ))}
