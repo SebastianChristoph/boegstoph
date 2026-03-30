@@ -6,8 +6,13 @@ import KniffelWidget from "@/components/KniffelWidget"
 
 export default function DashboardPage() {
   const today = new Date()
-  const hour = today.getHours()
-  const greeting = hour < 12 ? "Guten Morgen" : hour < 18 ? "Guten Tag" : "Guten Abend"
+  const hour = parseInt(new Intl.DateTimeFormat("de-DE", { hour: "numeric", hour12: false, timeZone: "Europe/Berlin" }).format(today), 10)
+  const greeting =
+    hour >= 22 || hour < 5 ? "Gute Nacht" :
+    hour < 11 ? "Guten Morgen" :
+    hour < 14 ? "Guten Mittag" :
+    hour < 18 ? "Guten Nachmittag" :
+    "Guten Abend"
 
   return (
     <div className="p-4 md:p-8 max-w-2xl mx-auto">
