@@ -27,6 +27,6 @@ export async function POST(req: NextRequest, { params }: { params: { listId: str
   }
 
   broadcast("shopping")
-  sendPushToAll("🛒 Einkaufsliste", `${name} wurde hinzugefügt`).catch(() => {})
+  sendPushToAll("🛒 Einkaufsliste", `${name} wurde hinzugefügt`, undefined, { standAloneOnly: true }).catch(() => {})
   return NextResponse.json(item, { status: 201 })
 }

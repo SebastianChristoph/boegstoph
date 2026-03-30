@@ -50,10 +50,10 @@ export async function POST(req: NextRequest) {
     // Update winner field
     await prisma.kniffelGame.update({ where: { id: updated.id }, data: { winner } })
     const msg = winner === "draw" ? "Unentschieden! 🤝" : `${winner} gewinnt Kniffel! 🎉`
-    sendPushToAll("🎲 Kniffel", msg, excludeEndpoint).catch(() => {})
+    sendPushToAll("🎲 Kniffel", msg, excludeEndpoint, { standAloneOnly: true }).catch(() => {})
     broadcast("kniffel", { type: "finished", winner, game: { ...updated, winner } })
   } else {
-    sendPushToAll("🎲 Kniffel", `${player} hat gewertet. ${next} ist dran!`, excludeEndpoint).catch(() => {})
+    sendPushToAll("🎲 Kniffel", `${player} hat gewertet. ${next} ist dran!`, excludeEndpoint, { standAloneOnly: true }).catch(() => {})
     broadcast("kniffel", { type: "score", game: updated })
   }
 
