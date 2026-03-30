@@ -176,6 +176,7 @@ model KniffelGame {
   dice          String   @default("[0,0,0,0,0]")   // JSON: current dice [1-6], 0 = not yet rolled
   held          String   @default("[false,false,false,false,false]") // JSON: which dice are held
   rollsLeft     Int      @default(3)               // 3=new turn, 0=must score
+  lastMove      String?                             // JSON: { player, category, score } — last scored move
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }

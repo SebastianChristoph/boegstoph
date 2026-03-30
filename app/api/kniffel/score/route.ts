@@ -24,7 +24,8 @@ export async function POST(req: NextRequest) {
     return new NextResponse("Category already scored", { status: 400 })
   }
 
-  scores[player][category as Category] = calcScore(dice, category as Category)
+  const scored = calcScore(dice, category as Category)
+  scores[player][category as Category] = scored
 
   const next = otherPlayer(player)
   const bothFull = isCardFull(scores.Sebastian) && isCardFull(scores.Tina)
@@ -38,6 +39,7 @@ export async function POST(req: NextRequest) {
       dice: JSON.stringify([0, 0, 0, 0, 0]),
       held: JSON.stringify([false, false, false, false, false]),
       rollsLeft: bothFull ? 0 : 3,
+      lastMove: JSON.stringify({ player, category, score: scored }),
     },
   })
 

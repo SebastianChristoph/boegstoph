@@ -16,6 +16,7 @@ interface KniffelGameData {
   dice: string     // JSON: number[5]
   held: string     // JSON: boolean[5]
   rollsLeft: number
+  lastMove: string | null  // JSON: { player, category, score }
 }
 
 type Scores = { Sebastian: ScoreCard; Tina: ScoreCard }
@@ -204,6 +205,11 @@ export default function KniffelWidget() {
     ? `${player} muss jetzt werten`
     : `${player} ist am Zug`
 
+  const lastMoveData = game?.lastMove ? JSON.parse(game.lastMove) as { player: string; category: Category; score: number } : null
+  const lastMoveText = lastMoveData && !isFinished && lastMoveData.player !== player
+    ? `${lastMoveData.player}: ${CATEGORY_LABELS[lastMoveData.category]} (${lastMoveData.score})`
+    : null
+
   // ── Dashboard card ────────────────────────────────────────────────────────
 
   const card = (
@@ -254,6 +260,9 @@ export default function KniffelWidget() {
       <p className={`text-xs text-center font-medium mt-1 ${isFinished ? "text-green-600" : "text-gray-500"}`}>
         {statusText}
       </p>
+      {lastMoveText && (
+        <p className="text-[10px] text-center text-gray-400 mt-0.5">Letzter Zug: {lastMoveText}</p>
+      )}
     </div>
   )
 
@@ -297,6 +306,9 @@ export default function KniffelWidget() {
                   <span className="text-xs font-normal ml-2 opacity-70">
                     ({game.rollsLeft}× würfeln möglich)
                   </span>
+                )}
+                {lastMoveText && (
+                  <div className="text-xs font-normal opacity-60 mt-0.5">Letzter Zug: {lastMoveText}</div>
                 )}
               </div>
 
