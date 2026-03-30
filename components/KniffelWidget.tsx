@@ -331,7 +331,7 @@ export default function KniffelWidget() {
                   <div className="text-xs font-normal opacity-60 mt-0.5">
                     Letzter Zug: {lastMoveText}
                     {lastMoveDice && (
-                      <span className="ml-1">{lastMoveDice.map(d => DICE_FACES[d]).join(" ")}</span>
+                      <span className="ml-1 text-lg leading-none">{lastMoveDice.map(d => DICE_FACES[d]).join(" ")}</span>
                     )}
                   </div>
                 )}
