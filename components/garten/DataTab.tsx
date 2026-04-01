@@ -306,28 +306,39 @@ function Delta({ current, previous, unit }: { current: number | null; previous: 
 export default function DataTab() {
   const [readings, setReadings] = useState<Reading[]>([])
   const [stats, setStats] = useState<ThermometerStats | null>(null)
+  const [statsSource, setStatsSource] = useState<Source>("gh")
   const [range, setRange] = useState<Range>("7d")
   const [loading, setLoading] = useState(true)
+  const [statsLoading, setStatsLoading] = useState(false)
   const [importing, setImporting] = useState(false)
   const [importStatus, setImportStatus] = useState<string | null>(null)
   const [uploadSource, setUploadSource] = useState<Source>("gh")
   const fileRef = useRef<HTMLInputElement>(null)
 
+  const loadStats = useCallback(async (src: Source) => {
+    setStatsLoading(true)
+    const res = await fetch(`/api/garden/thermometer/stats?source=${src}`)
+    if (res.ok) setStats(await res.json())
+    setStatsLoading(false)
+  }, [])
+
   const load = useCallback(async (r: Range) => {
     setLoading(true)
     const [readRes, statsRes] = await Promise.all([
       fetch(`/api/garden/thermometer?range=${r}`),
-      fetch("/api/garden/thermometer/stats"),
+      fetch(`/api/garden/thermometer/stats?source=${statsSource}`),
     ])
     if (readRes.ok) setReadings(await readRes.json())
-    if (statsRes.ok) {
-      const data = await statsRes.json()
-      setStats(data)
-    }
+    if (statsRes.ok) setStats(await statsRes.json())
     setLoading(false)
-  }, [])
+  }, [statsSource])
 
   useEffect(() => { load(range) }, [load, range])
+
+  async function handleStatsSource(src: Source) {
+    setStatsSource(src)
+    loadStats(src)
+  }
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -418,7 +429,7 @@ export default function DataTab() {
           )}
           {stats && (
             <div className="text-[11px] text-gray-400">
-              {stats.daysTracked} {stats.daysTracked === 1 ? "Tag" : "Tage"} erfasst · {stats.totalReadings} Messungen (GH)
+              {stats.daysTracked} {stats.daysTracked === 1 ? "Tag" : "Tage"} erfasst · {stats.totalReadings} Messungen ({statsSource === "gh" ? "GH" : "Out"})
             </div>
           )}
         </div>
@@ -486,13 +497,27 @@ export default function DataTab() {
 
       {loading && <div className="text-center py-8 text-gray-400 text-sm">Lade Daten…</div>}
 
-      {/* ── Stats section (GH-Daten) ────────────────────────────────────────── */}
+      {/* ── Stats section ───────────────────────────────────────────────────── */}
+      {/* Stats source toggle */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-gray-400">Statistiken für:</span>
+        {(["gh", "out"] as Source[]).map(s => (
+          <button key={s} onClick={() => handleStatsSource(s)}
+            className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${
+              statsSource === s ? "bg-primary-600 text-white" : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
+            }`}>
+            {s === "gh" ? "🏠 Gewächshaus" : "🌤️ Outdoor"}
+          </button>
+        ))}
+        {statsLoading && <span className="text-xs text-gray-400 ml-1">Lade…</span>}
+      </div>
+
       {stats && (
         <>
           {/* Rekorde */}
           <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4">
             <div className="text-sm font-medium text-gray-700 mb-1">🏆 Rekorde</div>
-            <p className="text-[10px] text-gray-400 mb-3">Gewächshaus-Daten</p>
+            <p className="text-[10px] text-gray-400 mb-3">{statsSource === "gh" ? "🏠 Gewächshaus" : "🌤️ Outdoor"}</p>
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-orange-50 rounded-xl p-3">
                 <div className="text-[11px] text-orange-400 mb-1">Wärmste Messung</div>
@@ -520,7 +545,7 @@ export default function DataTab() {
           {/* Saison-Kennzahlen */}
           <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4">
             <div className="text-sm font-medium text-gray-700 mb-1">🌱 Saison-Kennzahlen</div>
-            <p className="text-[10px] text-gray-400 mb-3">Gewächshaus-Daten</p>
+            <p className="text-[10px] text-gray-400 mb-3">{statsSource === "gh" ? "🏠 Gewächshaus" : "🌤️ Outdoor"}</p>
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-gray-50 rounded-xl p-3">
                 <div className="text-[11px] text-gray-400 mb-1">❄️ Frosttage</div>
@@ -543,14 +568,14 @@ export default function DataTab() {
           {/* Tagesverlauf */}
           <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4">
             <div className="text-sm font-medium text-gray-700 mb-1">🕐 Typischer Tagesverlauf</div>
-            <p className="text-[11px] text-gray-400 mb-3">Ø Temperatur pro Stunde · Gewächshaus</p>
+            <p className="text-[11px] text-gray-400 mb-3">Ø Temperatur pro Stunde · {statsSource === "gh" ? "Gewächshaus" : "Outdoor"}</p>
             <HourlyChart profile={stats.hourlyProfile} color="#f97316" unit="°C" />
           </div>
 
           {/* Wochenvergleich */}
           <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4">
             <div className="text-sm font-medium text-gray-700 mb-1">📅 Wochenvergleich</div>
-            <p className="text-[10px] text-gray-400 mb-3">Gewächshaus-Daten</p>
+            <p className="text-[10px] text-gray-400 mb-3">{statsSource === "gh" ? "🏠 Gewächshaus" : "🌤️ Outdoor"}</p>
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-gray-50 rounded-xl p-3">
                 <div className="text-[11px] text-gray-400 mb-2">Diese Woche</div>
@@ -606,7 +631,7 @@ export default function DataTab() {
           {stats.dailyExtremes.length > 1 && (
             <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4">
               <div className="text-sm font-medium text-gray-700 mb-1">📊 Tägliche Extremwerte</div>
-              <p className="text-[10px] text-gray-400 mb-3">Gewächshaus-Daten</p>
+              <p className="text-[10px] text-gray-400 mb-3">{statsSource === "gh" ? "🏠 Gewächshaus" : "🌤️ Outdoor"}</p>
               <div className="space-y-2">
                 {stats.dailyExtremes.slice(-7).map(d => {
                   const date = new Date(d.date + "T12:00:00Z").toLocaleDateString("de-DE", {

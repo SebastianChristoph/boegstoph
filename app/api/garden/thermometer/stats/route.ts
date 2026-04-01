@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 
 export const dynamic = "force-dynamic"
@@ -7,9 +7,10 @@ function avg(arr: number[]) {
   return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const source = new URL(req.url).searchParams.get("source") === "out" ? "out" : "gh"
   const all = await prisma.gardenThermometerReading.findMany({
-    where: { source: "gh" },
+    where: { source },
     orderBy: { timestamp: "asc" },
   })
 
