@@ -238,10 +238,16 @@ export default function TasksClient({ initialTasks }: { initialTasks: TaskWithOr
   }
 
   async function toggleTask(task: TaskWithOrder) {
+    let excludeEndpoint: string | undefined
+    try {
+      const reg = await navigator.serviceWorker.ready
+      const sub = await reg.pushManager.getSubscription()
+      excludeEndpoint = sub?.endpoint
+    } catch { /* push not available */ }
     await fetch(`/api/tasks/${task.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ completed: !task.completed }),
+      body: JSON.stringify({ completed: !task.completed, excludeEndpoint }),
     })
     reload()
   }

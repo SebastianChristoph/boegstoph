@@ -9,10 +9,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { taskId: st
   const session = await getServerSession(authOptions)
   if (!session) return new NextResponse("Unauthorized", { status: 401 })
   const body = await req.json()
-  const task = await prisma.task.update({ where: { id: params.taskId }, data: body })
+  const { excludeEndpoint, ...data } = body
+  const task = await prisma.task.update({ where: { id: params.taskId }, data })
   broadcast("tasks")
   if (body.completed === true) {
-    sendPushToAll("✅ Aufgabe erledigt", task.title, undefined, { standAloneOnly: true }).catch(() => {})
+    sendPushToAll("✅ Aufgabe erledigt", task.title, excludeEndpoint, { standAloneOnly: true }).catch(() => {})
   }
   return NextResponse.json(task)
 }

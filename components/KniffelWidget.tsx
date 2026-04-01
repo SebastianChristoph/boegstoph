@@ -141,7 +141,17 @@ export default function KniffelWidget() {
   }, [game?.id, game?.rollsLeft])
 
   async function startGame() {
-    const res = await fetch("/api/kniffel", { method: "POST" })
+    let excludeEndpoint: string | undefined
+    try {
+      const reg = await navigator.serviceWorker.ready
+      const sub = await reg.pushManager.getSubscription()
+      excludeEndpoint = sub?.endpoint
+    } catch { /* push not available */ }
+    const res = await fetch("/api/kniffel", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ excludeEndpoint }),
+    })
     if (res.ok) setGame(await res.json())
   }
 

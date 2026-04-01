@@ -232,10 +232,16 @@ export default function ShoppingClient({ initialLists }: { initialLists: ListWit
     setShowSuggestions(false)
 
     const catItems = itemMap[newCat] ?? []
+    let excludeEndpoint: string | undefined
+    try {
+      const reg = await navigator.serviceWorker.ready
+      const sub = await reg.pushManager.getSubscription()
+      excludeEndpoint = sub?.endpoint
+    } catch { /* push not available */ }
     await fetch(`/api/shopping/${activeListId}/items`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newName.trim(), category: newCat, sortOrder: catItems.length }),
+      body: JSON.stringify({ name: newName.trim(), category: newCat, sortOrder: catItems.length, excludeEndpoint }),
     })
     // refresh knowledge
     fetch("/api/knowledge").then((r) => r.json()).then(setKnowledge)

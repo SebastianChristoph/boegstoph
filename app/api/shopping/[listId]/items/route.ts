@@ -10,7 +10,7 @@ export async function POST(req: NextRequest, { params }: { params: { listId: str
   const session = await getServerSession(authOptions)
   if (!session) return new NextResponse("Unauthorized", { status: 401 })
 
-  const { name, category, sortOrder } = await req.json()
+  const { name, category, sortOrder, excludeEndpoint } = await req.json()
   const cat = category ?? DEFAULT_CATEGORY
 
   const item = await prisma.shoppingItem.create({
@@ -27,6 +27,6 @@ export async function POST(req: NextRequest, { params }: { params: { listId: str
   }
 
   broadcast("shopping")
-  sendPushToAll("🛒 Einkaufsliste", `${name} wurde hinzugefügt`, undefined, { standAloneOnly: true }).catch(() => {})
+  sendPushToAll("🛒 Einkaufsliste", `${name} wurde hinzugefügt`, excludeEndpoint, { standAloneOnly: true }).catch(() => {})
   return NextResponse.json(item, { status: 201 })
 }
