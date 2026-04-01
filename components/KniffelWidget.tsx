@@ -104,6 +104,11 @@ export default function KniffelWidget() {
   const animIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [scoring, setScoring] = useState(false)
   const [chatText, setChatText] = useState("")
+  const [chatSender, setChatSender] = useState<"Sebastian" | "Tina" | null>(() => {
+    if (typeof window === "undefined") return null
+    const v = localStorage.getItem("chat_sender")
+    return v === "Sebastian" || v === "Tina" ? v : null
+  })
 
   const loadScores = useCallback(async () => {
     const res = await fetch("/api/kniffel/scores")
@@ -213,12 +218,17 @@ export default function KniffelWidget() {
     setScoring(false)
   }
 
+  function selectChatSender(p: "Sebastian" | "Tina") {
+    setChatSender(p)
+    localStorage.setItem("chat_sender", p)
+  }
+
   async function sendKniffelChat() {
-    if (!chatText.trim()) return
+    if (!chatText.trim() || !chatSender) return
     const res = await fetch("/api/kniffel/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: chatText.trim() }),
+      body: JSON.stringify({ text: chatText.trim(), player: chatSender }),
     })
     if (res.ok) { setGame(await res.json()); setChatText("") }
   }
@@ -252,7 +262,6 @@ export default function KniffelWidget() {
     : null
   const lastMoveDice = lastMoveData && !isFinished && lastMoveData.player !== player ? lastMoveData.dice : null
   const chatMessages: ChatMsg[] = game ? JSON.parse(game.messages ?? "[]") : []
-  const chatSender = player === "Sebastian" ? "Tina" : "Sebastian"
 
   // ── Dashboard card ────────────────────────────────────────────────────────
 
@@ -529,18 +538,33 @@ export default function KniffelWidget() {
                     ))
                   }
                 </div>
+                {/* Sender-Auswahl */}
+                <div className="flex gap-1.5 mb-2">
+                  {(["Sebastian", "Tina"] as const).map(p => (
+                    <button key={p} onClick={() => selectChatSender(p)}
+                      className={`text-[11px] px-2.5 py-1 rounded-lg font-medium transition-colors ${
+                        chatSender === p
+                          ? p === "Sebastian" ? "bg-blue-500 text-white" : "bg-rose-500 text-white"
+                          : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                      }`}>
+                      {p}
+                    </button>
+                  ))}
+                  {!chatSender && <span className="text-[10px] text-gray-400 self-center ml-1">← wer schreibt?</span>}
+                </div>
                 <div className="flex gap-2">
                   <input
                     type="text"
                     value={chatText}
                     onChange={e => setChatText(e.target.value)}
                     onKeyDown={e => { if (e.key === "Enter") sendKniffelChat() }}
-                    placeholder={`Nachricht als ${chatSender}…`}
-                    className="flex-1 text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-300"
+                    placeholder={chatSender ? `Nachricht als ${chatSender}…` : "Erst Absender wählen…"}
+                    disabled={!chatSender}
+                    className="flex-1 text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-300 disabled:bg-gray-50 disabled:text-gray-400"
                   />
                   <button
                     onClick={sendKniffelChat}
-                    disabled={!chatText.trim()}
+                    disabled={!chatText.trim() || !chatSender}
                     className="text-xs px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium text-gray-600 disabled:opacity-40 shrink-0"
                   >
                     Senden
