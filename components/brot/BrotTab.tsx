@@ -134,7 +134,7 @@ function RecipeModal({ recipe, onClose }: { recipe: DbRecipe; onClose: () => voi
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
-      <div className="bg-white rounded-t-3xl md:rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col">
+      <div className="bg-white rounded-t-3xl md:rounded-2xl shadow-xl w-full max-w-lg max-h-[90dvh] flex flex-col">
         {/* Header image */}
         <div className="h-48 bg-amber-50 relative overflow-hidden shrink-0 rounded-t-3xl md:rounded-t-2xl">
           {recipe.imageUrl && !imgError ? (
@@ -318,7 +318,7 @@ function RecipeFormModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
-      <div className="bg-white rounded-t-3xl md:rounded-2xl shadow-xl w-full max-w-lg max-h-[95vh] flex flex-col">
+      <div className="bg-white rounded-t-3xl md:rounded-2xl shadow-xl w-full max-w-lg max-h-[95dvh] flex flex-col">
         <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
           <h2 className="font-semibold text-gray-900 text-lg">{initial ? "Rezept bearbeiten" : "Neues Rezept"}</h2>
           <button onClick={onCancel} className="text-gray-400 hover:text-gray-600 text-2xl leading-none w-8 h-8 flex items-center justify-center">×</button>
@@ -537,7 +537,7 @@ function RecipeFormModal({
           </div>
         </div>
 
-        <div className="px-5 pb-5 pt-3 border-t border-gray-100 flex gap-2 shrink-0">
+        <div className="px-5 pt-3 border-t border-gray-100 flex gap-2 shrink-0" style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}>
           <button
             onClick={onCancel}
             className="flex-1 px-4 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50"
@@ -896,7 +896,7 @@ function StartModal({ onClose, onStart }: { onClose: () => void; onStart: (type:
             <p className="text-xs text-gray-400 mt-1">Alle Todos werden ab 08:00 Uhr dieses Tages berechnet.</p>
           </div>
         </div>
-        <div className="px-5 pb-5 flex gap-2">
+        <div className="px-5 flex gap-2" style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}>
           <button onClick={onClose} className="flex-1 px-4 py-2 rounded-xl border border-gray-200 text-sm text-gray-600">Abbrechen</button>
           <button onClick={handleStart} disabled={saving}
             className="flex-1 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium disabled:opacity-50">
