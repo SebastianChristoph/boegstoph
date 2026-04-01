@@ -72,28 +72,62 @@ interface ChartPoint { ts: number; val: number }
 
 interface Series { data: ChartPoint[]; color: string; label: string }
 
+interface HoverState {
+  svgX: number
+  items: { label: string; color: string; val: number; ts: number }[]
+}
+
 function DualLineChart({ series, unit, range }: { series: Series[]; unit: string; range: Range }) {
+  const svgRef = useRef<SVGSVGElement>(null)
+  const [hover, setHover] = useState<HoverState | null>(null)
+
   const active = series.filter(s => s.data.length >= 2)
   if (!active.length) return null
 
-  const W = 400, H = 100
-  const PAD = { top: 10, right: 8, bottom: 22, left: 38 }
+  const W = 800, H = 180
+  const PAD = { top: 14, right: 14, bottom: 26, left: 46 }
   const iW = W - PAD.left - PAD.right
   const iH = H - PAD.top - PAD.bottom
 
   const allVals = active.flatMap(s => s.data.map(d => d.val))
   const lo = Math.min(...allVals), hi = Math.max(...allVals)
-  const valSpan = hi - lo || 1, pad = valSpan * 0.1
+  const valSpan = hi - lo || 1, padV = valSpan * 0.12
 
   const allTs = active.flatMap(s => s.data.map(d => d.ts))
   const minTs = Math.min(...allTs), maxTs = Math.max(...allTs)
   const tsSpan = maxTs - minTs || 1
 
   const toX = (ts: number) => PAD.left + ((ts - minTs) / tsSpan) * iW
-  const toY = (val: number) => PAD.top + iH - ((val - (lo - pad)) / (valSpan + 2 * pad)) * iH
+  const toY = (val: number) => PAD.top + iH - ((val - (lo - padV)) / (valSpan + 2 * padV)) * iH
+
+  function handleMouseMove(e: React.MouseEvent<SVGSVGElement>) {
+    const svg = svgRef.current
+    if (!svg) return
+    const rect = svg.getBoundingClientRect()
+    const svgX = ((e.clientX - rect.left) / rect.width) * W
+    const dataX = svgX - PAD.left
+    if (dataX < 0 || dataX > iW) { setHover(null); return }
+    const ts = minTs + (dataX / iW) * tsSpan
+
+    const items = active.map(s => {
+      let nearest = s.data[0]
+      let minDist = Math.abs(s.data[0].ts - ts)
+      for (const p of s.data) {
+        const d = Math.abs(p.ts - ts)
+        if (d < minDist) { minDist = d; nearest = p }
+      }
+      return { label: s.label, color: s.color, val: nearest.val, ts: nearest.ts }
+    })
+    setHover({ svgX, items })
+  }
 
   const refSeries = active[0]
-  const xLabels = [refSeries.data[0], refSeries.data[Math.floor(refSeries.data.length / 2)], refSeries.data[refSeries.data.length - 1]]
+  const xLabels = [
+    refSeries.data[0],
+    refSeries.data[Math.floor(refSeries.data.length / 3)],
+    refSeries.data[Math.floor(refSeries.data.length * 2 / 3)],
+    refSeries.data[refSeries.data.length - 1],
+  ]
 
   function fmtX(ts: number) {
     const d = new Date(ts)
@@ -102,28 +136,86 @@ function DualLineChart({ series, unit, range }: { series: Series[]; unit: string
       : d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", timeZone: "UTC" })
   }
 
+  const hoverTs = hover ? hover.items[0].ts : null
+
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: H }}>
-      <line x1={PAD.left} y1={PAD.top} x2={PAD.left} y2={PAD.top + iH} stroke="#e5e7eb" strokeWidth={1} />
-      <line x1={PAD.left} y1={PAD.top + iH} x2={PAD.left + iW} y2={PAD.top + iH} stroke="#e5e7eb" strokeWidth={1} />
-      <line x1={PAD.left} y1={PAD.top + iH / 2} x2={PAD.left + iW} y2={PAD.top + iH / 2} stroke="#f3f4f6" strokeWidth={1} strokeDasharray="3,3" />
-      <text x={PAD.left - 4} y={PAD.top + 4} fontSize={9} textAnchor="end" fill="#9ca3af">{hi.toFixed(1)}{unit}</text>
-      <text x={PAD.left - 4} y={PAD.top + iH / 2 + 3} fontSize={9} textAnchor="end" fill="#9ca3af">{((hi + lo) / 2).toFixed(1)}{unit}</text>
-      <text x={PAD.left - 4} y={PAD.top + iH + 1} fontSize={9} textAnchor="end" fill="#9ca3af">{lo.toFixed(1)}{unit}</text>
-      {xLabels.map((d, i) => (
-        <text key={i} x={toX(d.ts)} y={H - 4} fontSize={8}
-          textAnchor={i === 0 ? "start" : i === 2 ? "end" : "middle"} fill="#9ca3af">
-          {fmtX(d.ts)}
-        </text>
-      ))}
-      {active.map(s => {
-        const pts = s.data.map(d => `${toX(d.ts).toFixed(1)},${toY(d.val).toFixed(1)}`).join(" ")
-        return (
-          <polyline key={s.label} fill="none" stroke={s.color} strokeWidth={1.8}
-            strokeLinejoin="round" strokeLinecap="round" points={pts} />
-        )
-      })}
-    </svg>
+    <div className="relative select-none">
+      <svg
+        ref={svgRef}
+        viewBox={`0 0 ${W} ${H}`}
+        className="w-full cursor-crosshair"
+        style={{ height: "auto" }}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={() => setHover(null)}
+      >
+        {/* grid */}
+        <line x1={PAD.left} y1={PAD.top} x2={PAD.left} y2={PAD.top + iH} stroke="#e5e7eb" strokeWidth={1} />
+        <line x1={PAD.left} y1={PAD.top + iH} x2={PAD.left + iW} y2={PAD.top + iH} stroke="#e5e7eb" strokeWidth={1} />
+        {[0.25, 0.5, 0.75].map(f => (
+          <line key={f} x1={PAD.left} y1={PAD.top + iH * f} x2={PAD.left + iW} y2={PAD.top + iH * f}
+            stroke="#f3f4f6" strokeWidth={1} strokeDasharray="4,4" />
+        ))}
+        {/* y-axis labels */}
+        {[0, 0.25, 0.5, 0.75, 1].map(f => {
+          const val = lo - padV + (valSpan + 2 * padV) * (1 - f)
+          return (
+            <text key={f} x={PAD.left - 5} y={PAD.top + iH * f + 4}
+              fontSize={10} textAnchor="end" fill="#9ca3af">
+              {val.toFixed(1)}{unit}
+            </text>
+          )
+        })}
+        {/* x-axis labels */}
+        {xLabels.map((d, i) => (
+          <text key={i} x={toX(d.ts)} y={H - 5} fontSize={9}
+            textAnchor={i === 0 ? "start" : i === xLabels.length - 1 ? "end" : "middle"} fill="#9ca3af">
+            {fmtX(d.ts)}
+          </text>
+        ))}
+        {/* data lines */}
+        {active.map(s => {
+          const pts = s.data.map(d => `${toX(d.ts).toFixed(1)},${toY(d.val).toFixed(1)}`).join(" ")
+          return (
+            <polyline key={s.label} fill="none" stroke={s.color} strokeWidth={2}
+              strokeLinejoin="round" strokeLinecap="round" points={pts} />
+          )
+        })}
+        {/* hover crosshair */}
+        {hover && (
+          <>
+            <line
+              x1={hover.svgX} y1={PAD.top}
+              x2={hover.svgX} y2={PAD.top + iH}
+              stroke="#6b7280" strokeWidth={1} strokeDasharray="4,3"
+            />
+            {hover.items.map(item => (
+              <circle key={item.label}
+                cx={toX(item.ts)} cy={toY(item.val)} r={5}
+                fill="white" stroke={item.color} strokeWidth={2.5}
+              />
+            ))}
+          </>
+        )}
+      </svg>
+
+      {/* Tooltip */}
+      {hover && hoverTs !== null && (
+        <div className="absolute top-2 right-2 bg-white border border-gray-200 rounded-xl shadow-lg px-3 py-2 text-xs pointer-events-none z-10 min-w-[130px]">
+          <div className="text-gray-400 mb-1.5 text-[10px] font-medium">
+            {new Date(hoverTs).toLocaleString("de-DE", {
+              day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "UTC",
+            })}
+          </div>
+          {hover.items.map(item => (
+            <div key={item.label} className="flex items-center gap-2 py-0.5">
+              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+              <span className="text-gray-500 w-7">{item.label}</span>
+              <span className="font-semibold text-gray-800 tabular-nums">{item.val.toFixed(1)}{unit}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -137,8 +229,8 @@ function HourlyChart({ profile, color, unit }: {
   const vals = profile.map(p => unit === "°C" ? p.avgTemp : p.avgHumidity).filter((v): v is number => v !== null)
   if (vals.length < 2) return <p className="text-xs text-gray-400 text-center py-4">Noch zu wenig Daten für Tagesverlauf</p>
 
-  const W = 400, H = 80
-  const PAD = { top: 8, right: 4, bottom: 20, left: 34 }
+  const W = 800, H = 140
+  const PAD = { top: 12, right: 8, bottom: 24, left: 42 }
   const iW = W - PAD.left - PAD.right
   const iH = H - PAD.top - PAD.bottom
 
