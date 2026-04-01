@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import type { SauerteigBatch, SauerteigTodo } from "@prisma/client"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -8,374 +8,31 @@ import type { SauerteigBatch, SauerteigTodo } from "@prisma/client"
 type BatchWithTodos = SauerteigBatch & { todos: SauerteigTodo[] }
 type SubTab = "sauerteig" | "rezepte"
 
-// ── Recipe data ───────────────────────────────────────────────────────────────
+// ── DB Recipe type ─────────────────────────────────────────────────────────────
 
-interface Recipe {
+interface DbRecipe {
   id: string
   name: string
   emoji: string
   beschreibung: string
-  schwierigkeit: "Anfänger" | "Mittel" | "Fortgeschritten"
+  schwierigkeit: string
   backzeit: string
   gesamtzeit: string
   ergebnis: string
   mehltyp: string
-  imageUrl: string
-  zutaten: string[]
-  schritte: string[]
+  imageUrl: string | null
+  zutaten: string  // JSON
+  schritte: string // JSON
+  createdAt: string
+  updatedAt: string
 }
 
-const REZEPTE: Recipe[] = [
-  {
-    id: "roggenbrot",
-    name: "Reines Roggenbrot",
-    emoji: "🌾",
-    beschreibung: "Traditionelles deutsches Roggenbrot mit kräftigem Aroma und langer Haltbarkeit. Der pure Sauerteig-Geschmack macht dieses dichte, saftige Brot zum Klassiker der deutschen Brotkultur.",
-    schwierigkeit: "Anfänger",
-    backzeit: "60 Min.",
-    gesamtzeit: "18 Std.",
-    ergebnis: "1 Laib (ca. 1000g)",
-    mehltyp: "Roggen",
-    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/1/1f/Roggenbrot-Laib_Loaf-rye-bread.JPG",
-    zutaten: [
-      "12 g Roggensauerteig-Anstellgut",
-      "240 g Roggenvollkornmehl",
-      "240 g Wasser (37°C) — für den Sauerteig",
-      "360 g Roggenmehl Typ 1150",
-      "270 g Wasser (40°C) — für den Hauptteig",
-      "12 g Salz",
-    ],
-    schritte: [
-      "Anstellgut im Wasser auflösen und mit Roggenvollkornmehl verrühren. 14–16 Stunden bei Raumtemperatur reifen lassen.",
-      "Sauerteig mit warmem Wasser vermischen, dann Roggenmehl und Salz hinzufügen. 3 Minuten kneten, 30 Minuten abgedeckt ruhen lassen.",
-      "Teig zu einem Laib formen und in ein bemehltes Gärkörbchen geben. Ca. 45 Minuten bei 28°C gären (bis sichtbare Risse an der Oberfläche).",
-      "Backofen mit Gusstopf auf 250°C vorheizen. Laib in den heißen Gusstopf setzen.",
-      "10 Minuten bei 250°C mit Deckel backen, dann Deckel ab und 50 Minuten bei 200°C.",
-      "Kerntemperatur muss mindestens 95°C erreichen. Mindestens 4 Stunden auskühlen lassen.",
-    ],
-  },
-  {
-    id: "weizenbrot",
-    name: "Klassisches Weizen-Sauerteigbrot",
-    emoji: "🌿",
-    beschreibung: "Luftiges, aromatisches Weizenbrot ohne Zusatzhefe. Knusprige Kruste, saftige Krume — perfekt für den Einstieg. Das Aroma entwickelt sich über eine lange, schonende Teigführung.",
-    schwierigkeit: "Anfänger",
-    backzeit: "50 Min.",
-    gesamtzeit: "10 Std.",
-    ergebnis: "1 Laib (ca. 720g)",
-    mehltyp: "Weizen",
-    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/6/67/Brote.JPG",
-    zutaten: [
-      "100 g Weizensauerteig-Anstellgut (aktiv)",
-      "400 g Weizenmehl Typ 550",
-      "100 g Weizenmehl Typ 1050",
-      "308 g Wasser (Raumtemperatur)",
-      "12 g Salz",
-    ],
-    schritte: [
-      "Sauerteig-Anstellgut mit Wasser verrühren, dann beide Mehle unterkneten. 30 Minuten Autolyse-Pause.",
-      "Salz hinzufügen, 8 Minuten kneten (erst langsam, dann schneller).",
-      "5 Stunden Stockgare bei 21–22°C. In den ersten 90 Minuten alle 30 Min. dehnen und falten.",
-      "Teig sanft zu einer straffen Kugel formen und mit der Naht nach oben in ein bemehltes Gärkörbchen legen.",
-      "1–1,5 Stunden Stückgare bei Raumtemperatur. Mit dem Fingertest prüfen: Teig soll langsam zurückfedern.",
-      "Mit einem scharfen Messer einschneiden. 20 Min. bei 250°C im zugedeckten Gusstopf, dann 25 Min. bei 200°C offen.",
-    ],
-  },
-  {
-    id: "dinkelbrot",
-    name: "Reines Dinkel-Sauerteigbrot",
-    emoji: "✨",
-    beschreibung: "Wertvolles Vollkornbrot aus Dinkelmehl mit feinem, nussigem Geschmack. Dinkel ist bekömmlicher als Weizen — mit Sauerteig eine hervorragende Alternative für empfindliche Mägen.",
-    schwierigkeit: "Mittel",
-    backzeit: "45 Min.",
-    gesamtzeit: "20 Std.",
-    ergebnis: "1 Laib (ca. 800g)",
-    mehltyp: "Dinkel",
-    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/8/85/Vollkornbrot_z01.JPG",
-    zutaten: [
-      "1 EL Dinkelsauerteig-Anstellgut",
-      "60 g Dinkelvollkornmehl + 60 g Wasser (lauwarm) — Vorteig",
-      "350 g Dinkelmehl Typ 630",
-      "75 g Dinkelvollkornmehl",
-      "250 ml Wasser (lauwarm)",
-      "10 g Salz",
-    ],
-    schritte: [
-      "Anstellgut mit Dinkelvollkornmehl und Wasser mischen. 2–4 Stunden gehen lassen, bis verdoppelt.",
-      "Restliches Mehl, Wasser und Salz hinzufügen. 30 Minuten ruhen, dann 10 Minuten kneten.",
-      "3–4 Stunden Stockgare bei Raumtemperatur. Stündlich dehnen und falten.",
-      "Teig formen, mit der Naht nach oben in ein bemehltes Gärkörbchen legen. Über Nacht (ca. 12 Stunden) im Kühlschrank.",
-      "Backofen mit Gusstopf auf 240°C vorheizen. Laib direkt aus dem Kühlschrank einschießen.",
-      "25 Minuten zugedeckt bei 220°C backen, dann 20 Minuten ohne Deckel. Vollständig auskühlen lassen.",
-    ],
-  },
-  {
-    id: "mischbrot",
-    name: "Roggenmischbrot",
-    emoji: "🍞",
-    beschreibung: "Das perfekte Alltagsbrot mit 70% Roggen und 30% Weizen — aromatisch, sättigend und lange haltbar. Ein echter Klassiker für jeden Tag, der sich mit etwas Übung problemlos meistern lässt.",
-    schwierigkeit: "Anfänger",
-    backzeit: "45 Min.",
-    gesamtzeit: "12 Std.",
-    ergebnis: "1 großer Laib (ca. 1100g)",
-    mehltyp: "Roggen-Weizen",
-    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/1/1f/Roggenbrot-Laib_Loaf-rye-bread.JPG",
-    zutaten: [
-      "150 g Roggensauerteig (aktiv)",
-      "300 g Roggenmehl Typ 1150",
-      "200 g Weizenmehl Typ 550",
-      "330 g lauwarmes Wasser",
-      "10 g Salz",
-      "1 TL Brotgewürz (Kümmel, Koriander, Fenchel)",
-    ],
-    schritte: [
-      "Alle Zutaten in eine Schüssel geben und zu einem klebrigen Teig verrühren (kein intensives Kneten nötig bei Roggen).",
-      "Teig abdecken und 2 Stunden bei Raumtemperatur gehen lassen.",
-      "Nochmals kurz durchrühren, in eine gefettete Kastenform oder zu einem Laib formen.",
-      "Ca. 45 Minuten Stückgare bis der Teig sichtbar aufgegangen ist.",
-      "Backofen auf 250°C vorheizen, eventuell mit Schwaden (Dampf) starten.",
-      "10 Minuten bei 250°C, dann 35 Minuten bei 200°C fertig backen.",
-    ],
-  },
-  {
-    id: "bauernbrot",
-    name: "Rustikales Bauernbrot",
-    emoji: "🏡",
-    beschreibung: "Das traditionelle deutsche Bauernbrot — rustikal, saftig und mit kräftigem Aroma. Gelockert allein durch Sauerteig, beeindruckend lange haltbar und perfekt für herzhafte Beläge.",
-    schwierigkeit: "Mittel",
-    backzeit: "45 Min.",
-    gesamtzeit: "14 Std.",
-    ergebnis: "1 großer Laib (ca. 1050g)",
-    mehltyp: "Roggen-Weizen",
-    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/3/33/Fresh_made_bread_05.jpg",
-    zutaten: [
-      "40 g Sauerteig-Anstellgut",
-      "55 g Roggenmehl + 55 g Wasser — Vorteig",
-      "300 g Roggenmehl Typ 960",
-      "200 g Weizenmehl Typ 1050",
-      "330 g lauwarmes Wasser",
-      "10 g Salz",
-      "1 TL Brotgewürz",
-      "5 g frische Hefe (optional)",
-    ],
-    schritte: [
-      "Anstellgut mit Roggenmehl und Wasser vermischen. 6–8 Stunden abgedeckt gehen lassen.",
-      "Alle Zutaten vermischen und kurz verkneten. 2 Stunden Stockgare.",
-      "Teig kurz durchkneten und zu einem Laib formen. In ein bemehltes Gärkörbchen legen.",
-      "30 Minuten Stückgare bei Raumtemperatur.",
-      "Backofen auf 250°C vorheizen. Brot mit Dampf einschießen.",
-      "15 Minuten bei 250°C, dann 30 Minuten bei 220°C. Gut auskühlen lassen.",
-    ],
-  },
-  {
-    id: "vollkornbrot",
-    name: "100% Vollkorn-Sauerteigbrot",
-    emoji: "💪",
-    beschreibung: "Ein vollwertiges Kraftpaket aus Dinkel-, Roggen- und Weizenvollkornmehl. Trotz 100% Vollkornanteil überraschend luftig. Eine echte Herausforderung für ambitionierte Hobbybäcker.",
-    schwierigkeit: "Fortgeschritten",
-    backzeit: "55 Min.",
-    gesamtzeit: "22 Std.",
-    ergebnis: "1 Laib (ca. 1000g)",
-    mehltyp: "Weizen-Dinkel-Roggen",
-    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/8/85/Vollkornbrot_z01.JPG",
-    zutaten: [
-      "120 g Weizensauerteig-Anstellgut",
-      "240 g Weizenvollkornmehl",
-      "80 g Dinkelvollkornmehl",
-      "20 g Roggenvollkornmehl",
-      "10 g Altbrot (gemahlen, optional)",
-      "10 g Rübensirup",
-      "180 g Wasser (Autolyse) + 12 g Reservewasser",
-      "8 g Salz",
-    ],
-    schritte: [
-      "Sauerteig auffrischen: Anstellgut mit 60 g Weizenvollkornmehl und 48 g Wasser mischen. 12 Stunden gehen lassen.",
-      "Autolyse: Restliche Mehle, Altbrot, Rübensirup und 180 g Wasser vermischen. 1 Stunde ruhen.",
-      "Sauerteig, Salz und Reservewasser zum Autolyseteig geben und gut verkneten.",
-      "3–4 Stunden Stockgare mit Dehnen und Falten alle 45 Minuten.",
-      "Abends formen, in Gärkörbchen legen, über Nacht im Kühlschrank gären (mind. 12 Stunden).",
-      "25 Minuten zugedeckt bei 250°C, dann 25 Minuten offen bei 200°C. Letzte 5 Minuten Tür leicht öffnen.",
-    ],
-  },
-  {
-    id: "ciabatta",
-    name: "Sauerteig-Ciabatta",
-    emoji: "🇮🇹",
-    beschreibung: "Das italienische Kultbrot mit natürlichem Sauerteig. Charakteristisch großporig mit luftiger Krume und knuspriger Kruste dank sehr hoher Hydratation. Ein Gourmet-Brot für anspruchsvolle Bäcker.",
-    schwierigkeit: "Fortgeschritten",
-    backzeit: "35 Min.",
-    gesamtzeit: "18 Std.",
-    ergebnis: "2 Ciabatta (je ca. 350g)",
-    mehltyp: "Weizen",
-    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/b/b2/Ciabatta_cut.JPG",
-    zutaten: [
-      "10 g Weizensauerteig-Anstellgut",
-      "60 g Weizenmehl Typ 550 — Vorteig",
-      "50 g Wasser (35°C) — Vorteig",
-      "400 g Weizenmehl Typ 550",
-      "310 g Wasser (kalt)",
-      "20 g Olivenöl",
-      "6 g Salz",
-      "20 g Bassinage-Wasser (zum Einarbeiten)",
-    ],
-    schritte: [
-      "Vorteig: Sauerteig, Mehl und Wasser mischen. 12–16 Stunden bei Raumtemperatur gären.",
-      "Autolyse: Hauptmehl, Wasser und Vorteig mischen. 40 Minuten ruhen lassen.",
-      "Salz und Olivenöl einarbeiten, Bassinage-Wasser portionsweise einkneten.",
-      "3 Stunden Stockgare bei Raumtemperatur. Alle 45 Minuten dehnen und falten (Coil Folds).",
-      "Teig vorsichtig auf bemehlte Fläche geben und in 2 Teile teilen. Nicht entgasen! Locker in Form bringen.",
-      "50–60 Minuten Stückgare. Bei 250°C mit viel Dampf 20 Minuten, dann 15 Minuten bei 220°C offen.",
-    ],
-  },
-  {
-    id: "baguette",
-    name: "Sauerteig-Baguette",
-    emoji: "🥖",
-    beschreibung: "Das französische Kultbrot mit deutschem Sauerteig-Twist. Knusprige Kruste, offene Krume, typische Baguette-Aromen. Bringt Pariser Flair auf den Familientisch.",
-    schwierigkeit: "Fortgeschritten",
-    backzeit: "25 Min.",
-    gesamtzeit: "16 Std.",
-    ergebnis: "2 Baguettes (je ca. 300g)",
-    mehltyp: "Weizen",
-    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/9/9c/Baguette_de_tradition.jpg",
-    zutaten: [
-      "10 g Weizensauerteig-Anstellgut",
-      "50 g Weizenmehl T80 + 40 g Wasser — Vorteig (Vorabend)",
-      "500 g Weizenmehl Typ 550 (Typ 65 ist ideal)",
-      "360 g Wasser (kalt)",
-      "10 g Salz",
-      "Optional: 2 g frische Hefe (für mehr Triebsicherheit)",
-    ],
-    schritte: [
-      "Vorabend: Sauerteig mit Mehl und Wasser mischen. Über Nacht bei Raumtemperatur gären lassen.",
-      "Autolyse: Hauptmehl und 340 g Wasser 45 Minuten quellen lassen.",
-      "Vorteig, Salz, restliches Wasser (und ggf. Hefe) einarbeiten. 8 Minuten kneten.",
-      "3–4 Stunden Stockgare mit 3x dehnen und falten im 30-Minuten-Abstand.",
-      "In zwei Teile teilen, länglich vorformen, 20 Minuten entspannen lassen, dann straff zu Baguettes formen.",
-      "1 Stunde Stückgare. 3x diagonal einschneiden. 10 Minuten mit Dampf bei 250°C, dann 15 Minuten bei 230°C.",
-    ],
-  },
-  {
-    id: "broetchen",
-    name: "Sauerteig-Brötchen",
-    emoji: "🧆",
-    beschreibung: "Knusprige, aromatische Brötchen ohne Hefe — nur mit aktivem Sauerteig. Ideal für das Wochenend-Frühstück. Mit langer Teigführung entwickeln sie ein wunderbares Aroma und bleiben lange frisch.",
-    schwierigkeit: "Anfänger",
-    backzeit: "22 Min.",
-    gesamtzeit: "8 Std.",
-    ergebnis: "10–12 Brötchen",
-    mehltyp: "Weizen",
-    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/c/c6/Broetchen.jpg",
-    zutaten: [
-      "120 g Weizensauerteig-Anstellgut (aktiv, nach Füttern)",
-      "600 g Weizenmehl Typ 550",
-      "220 ml lauwarmes Wasser",
-      "100 ml Milch (oder Pflanzenmilch)",
-      "15 g Salz",
-      "Optional: Sesam, Mohn oder Sonnenblumenkerne zum Bestreuen",
-    ],
-    schritte: [
-      "Alle Zutaten in eine Schüssel geben und 8–10 Minuten zu einem glatten Teig kneten.",
-      "Abgedeckt 5–6 Stunden bei Raumtemperatur gehen lassen. Nach 2 Stunden einmal dehnen und falten.",
-      "Teig auf bemehlter Fläche in 10–12 gleichmäßige Stücke teilen. Zu straffen Kugeln formen.",
-      "Brötchen auf ein Backpapier setzen, optional mit Wasser einstreichen und bestreuen.",
-      "30 Minuten Stückgare bei Raumtemperatur.",
-      "Backofen auf 210°C vorheizen. Mit Dampf einschießen (Schüssel Wasser auf Ofenboden). 20–22 Minuten goldbraun backen.",
-    ],
-  },
-  {
-    id: "kuerbiskernbrot",
-    name: "Kürbiskernbrot",
-    emoji: "🎃",
-    beschreibung: "Ein dekoratives Sauerteigbrot voller Kürbiskerne und Sesam. Die Kerne geben knackige Textur und nussigen Geschmack. Optisch beeindruckend — ein Blickfang auf jedem Tisch.",
-    schwierigkeit: "Mittel",
-    backzeit: "55 Min.",
-    gesamtzeit: "20 Std.",
-    ergebnis: "1 Laib (ca. 1000g)",
-    mehltyp: "Weizen-Roggen",
-    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/8/85/Vollkornbrot_z01.JPG",
-    zutaten: [
-      "120 g Roggensauerteig-Anstellgut",
-      "375 g Weizenmehl Typ 1050",
-      "60 g Weizenmehl Typ 550",
-      "60 g Roggenmehl Typ 1150",
-      "290 g Wasser (36°C)",
-      "10 g Salz",
-      "120 g geröstete Kürbiskerne",
-      "60 g Sesam",
-      "Kürbiskerne, Haferflocken und Sesam zum Bestreuen",
-    ],
-    schritte: [
-      "Sauerteig: Anstellgut mit 60 g Roggenmehl, 60 g Roggenvollkornmehl und 120 g Wasser mischen. 12–16 Stunden gären.",
-      "Kürbiskerne und Sesam in einer Pfanne ohne Fett anrösten. Abkühlen lassen.",
-      "Alle Mehle, Sauerteig und Wasser mischen. 30 Minuten Autolyse, dann Salz einkneten.",
-      "Geröstete Kerne in den Teig einfalten. 3 Stunden Stockgare mit 2x dehnen und falten.",
-      "Zu einem Laib formen, Oberfläche anfeuchten, großzügig mit Kürbiskernen, Haferflocken und Sesam bestreuen.",
-      "75–90 Minuten Stückgare. 55 Minuten bei 210°C im Gusstopf (erste 25 Min. zugedeckt) backen.",
-    ],
-  },
-  {
-    id: "koernerbrot",
-    name: "Kerniges Körnerbrot",
-    emoji: "🌻",
-    beschreibung: "Ein nahrhaftes Alltagsbrot voller verschiedener Samen und Körner. Sonnenblumenkerne, Leinsamen, Sesam und Kürbiskerne machen es zum Kraftpaket — und durch den Sauerteig bleibt es erstaunlich lange frisch.",
-    schwierigkeit: "Mittel",
-    backzeit: "50 Min.",
-    gesamtzeit: "12 Std.",
-    ergebnis: "1 Laib (ca. 1100g)",
-    mehltyp: "Weizen",
-    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/0/01/Rye_bread_-_ithmus.jpg",
-    zutaten: [
-      "100 g Weizensauerteig-Anstellgut",
-      "400 g Weizenmehl Typ 550",
-      "100 g Weizenmehl Typ 1050",
-      "300 g Wasser",
-      "15 g Salz",
-      "50 g Sonnenblumenkerne",
-      "30 g Leinsamen",
-      "30 g Sesam",
-      "30 g Kürbiskerne",
-      "Optional: 1 EL Rübensirup",
-    ],
-    schritte: [
-      "Alle Körner und Samen mind. 1 Stunde in etwas Wasser einweichen (spart Feuchtigkeit im Brot).",
-      "Sauerteig mit 300 g Wasser auflösen. Mehle einkneten. 30 Minuten Autolyse.",
-      "Salz und Körner-Mischung einarbeiten. Gut durchkneten.",
-      "4–6 Stunden Stockgare mit 3x dehnen und falten im Stundenabstand.",
-      "Zu einem Laib formen, in bemehltes Gärkörbchen legen. 2 Stunden Stückgare (oder über Nacht im Kühlschrank).",
-      "Bei 250°C 20 Minuten zugedeckt, dann 30 Minuten offen bei 200°C backen.",
-    ],
-  },
-  {
-    id: "laugenbrezel",
-    name: "Sauerteig-Laugenbrezel",
-    emoji: "🥨",
-    beschreibung: "Die bayerische Brezel mit Sauerteig — außen glänzend dunkelbraun durch das Natronbad, innen weich und aromatisch. Ein Highlight für das Wochenendfrühstück oder die Brotzeit.",
-    schwierigkeit: "Fortgeschritten",
-    backzeit: "20 Min.",
-    gesamtzeit: "14 Std.",
-    ergebnis: "8–10 Brezeln",
-    mehltyp: "Weizen",
-    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/8/88/Pretzel_-_stocker1970.jpg",
-    zutaten: [
-      "80 g Weizensauerteig-Anstellgut (aktiv)",
-      "500 g Weizenmehl Typ 550",
-      "250 ml lauwarmes Wasser",
-      "12 g Salz",
-      "30 g weiche Butter",
-      "Für das Natronbad: 1 Liter Wasser + 40 g Natron",
-      "Grobes Salz zum Bestreuen",
-    ],
-    schritte: [
-      "Sauerteig mit Wasser, Mehl, Salz und Butter zu einem glatten, geschmeidigen Teig kneten (mind. 10 Minuten).",
-      "Abgedeckt 3 Stunden bei Raumtemperatur gehen lassen, dann über Nacht in den Kühlschrank (8–12 Stunden).",
-      "Teig in 8–10 gleichmäßige Stücke teilen. Jeden zu einer langen Rolle (ca. 60 cm) ausrollen und zur Brezel schlingen.",
-      "30 Minuten bei Raumtemperatur entspannen lassen.",
-      "Natronbad: Wasser aufkochen, Natron vorsichtig einrühren. Brezeln je 30 Sekunden einlegen, auf Backpapier setzen.",
-      "Mit grobem Salz bestreuen. Bei 200°C Umluft 18–20 Minuten backen bis tief goldbraun.",
-    ],
-  },
-]
+function parseZutaten(r: DbRecipe): string[] {
+  try { return JSON.parse(r.zutaten) } catch { return [] }
+}
+function parseSchritte(r: DbRecipe): string[] {
+  try { return JSON.parse(r.schritte) } catch { return [] }
+}
 
 // ── Sauerteig constants ───────────────────────────────────────────────────────
 
@@ -393,69 +50,94 @@ const TYPE_MEHL: Record<string, string> = {
 
 // ── Difficulty badge ──────────────────────────────────────────────────────────
 
-function DiffBadge({ diff }: { diff: Recipe["schwierigkeit"] }) {
-  const colors = {
-    Anfänger: "bg-green-100 text-green-700",
-    Mittel: "bg-amber-100 text-amber-700",
-    Fortgeschritten: "bg-red-100 text-red-700",
+function DiffBadge({ diff }: { diff: string }) {
+  const colors: Record<string, string> = {
+    "Anfänger": "bg-green-100 text-green-700",
+    "Mittel": "bg-amber-100 text-amber-700",
+    "Fortgeschritten": "bg-red-100 text-red-700",
   }
   return (
-    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${colors[diff]}`}>{diff}</span>
+    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${colors[diff] ?? "bg-gray-100 text-gray-600"}`}>{diff}</span>
   )
 }
 
 // ── Recipe card ───────────────────────────────────────────────────────────────
 
-function RecipeCard({ recipe, onClick }: { recipe: Recipe; onClick: () => void }) {
+function RecipeCard({
+  recipe,
+  onClick,
+  onEdit,
+  onDelete,
+}: {
+  recipe: DbRecipe
+  onClick: () => void
+  onEdit: (e: React.MouseEvent) => void
+  onDelete: (e: React.MouseEvent) => void
+}) {
   const [imgError, setImgError] = useState(false)
 
   return (
-    <button
-      onClick={onClick}
-      className="text-left bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden hover:shadow-md hover:border-amber-300 transition-all"
-    >
-      {/* Image */}
-      <div className="h-40 bg-amber-50 overflow-hidden flex items-center justify-center">
-        {!imgError ? (
-          <img
-            src={recipe.imageUrl}
-            alt={recipe.name}
-            className="w-full h-full object-cover"
-            onError={() => setImgError(true)}
-          />
-        ) : (
-          <span className="text-5xl">{recipe.emoji}</span>
-        )}
+    <div className="relative text-left bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden hover:shadow-md hover:border-amber-300 transition-all group">
+      {/* Edit / Delete buttons */}
+      <div className="absolute top-2 right-2 z-10 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          onClick={onEdit}
+          className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/90 hover:bg-amber-50 border border-gray-200 text-gray-500 hover:text-amber-600 text-sm shadow-sm"
+          title="Bearbeiten"
+        >✏️</button>
+        <button
+          onClick={onDelete}
+          className="w-7 h-7 flex items-center justify-center rounded-lg bg-white/90 hover:bg-red-50 border border-gray-200 text-gray-500 hover:text-red-500 text-sm shadow-sm"
+          title="Löschen"
+        >🗑️</button>
       </div>
 
-      {/* Content */}
-      <div className="p-3">
-        <div className="flex items-start justify-between gap-1 mb-1">
-          <span className="font-semibold text-gray-900 text-sm leading-snug">{recipe.emoji} {recipe.name}</span>
+      <button onClick={onClick} className="w-full text-left">
+        {/* Image */}
+        <div className="h-40 bg-amber-50 overflow-hidden flex items-center justify-center">
+          {recipe.imageUrl && !imgError ? (
+            <img
+              src={recipe.imageUrl}
+              alt={recipe.name}
+              className="w-full h-full object-cover"
+              onError={() => setImgError(true)}
+            />
+          ) : (
+            <span className="text-5xl">{recipe.emoji}</span>
+          )}
         </div>
-        <DiffBadge diff={recipe.schwierigkeit} />
-        <p className="text-xs text-gray-500 mt-2 line-clamp-2 leading-relaxed">{recipe.beschreibung}</p>
-        <div className="flex gap-3 mt-3 text-xs text-gray-400">
-          <span>🕐 {recipe.backzeit}</span>
-          <span>⏱ {recipe.gesamtzeit}</span>
-          <span>🍞 {recipe.ergebnis}</span>
+
+        {/* Content */}
+        <div className="p-3">
+          <div className="flex items-start justify-between gap-1 mb-1">
+            <span className="font-semibold text-gray-900 text-sm leading-snug">{recipe.emoji} {recipe.name}</span>
+          </div>
+          <DiffBadge diff={recipe.schwierigkeit} />
+          <p className="text-xs text-gray-500 mt-2 line-clamp-2 leading-relaxed">{recipe.beschreibung}</p>
+          <div className="flex gap-3 mt-3 text-xs text-gray-400">
+            <span>🕐 {recipe.backzeit}</span>
+            <span>⏱ {recipe.gesamtzeit}</span>
+            <span>🍞 {recipe.ergebnis}</span>
+          </div>
         </div>
-      </div>
-    </button>
+      </button>
+    </div>
   )
 }
 
-// ── Recipe modal ──────────────────────────────────────────────────────────────
+// ── Recipe detail modal ───────────────────────────────────────────────────────
 
-function RecipeModal({ recipe, onClose }: { recipe: Recipe; onClose: () => void }) {
+function RecipeModal({ recipe, onClose }: { recipe: DbRecipe; onClose: () => void }) {
   const [imgError, setImgError] = useState(false)
+  const zutaten = parseZutaten(recipe)
+  const schritte = parseSchritte(recipe)
 
   return (
     <div className="fixed inset-0 bg-black/60 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
       <div className="bg-white rounded-t-3xl md:rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col">
         {/* Header image */}
         <div className="h-48 bg-amber-50 relative overflow-hidden shrink-0 rounded-t-3xl md:rounded-t-2xl">
-          {!imgError ? (
+          {recipe.imageUrl && !imgError ? (
             <img
               src={recipe.imageUrl}
               alt={recipe.name}
@@ -504,7 +186,7 @@ function RecipeModal({ recipe, onClose }: { recipe: Recipe; onClose: () => void 
           {/* Zutaten */}
           <h3 className="font-semibold text-gray-900 mb-2">Zutaten</h3>
           <ul className="space-y-1.5 mb-5">
-            {recipe.zutaten.map((z, i) => (
+            {zutaten.map((z, i) => (
               <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
                 <span className="text-amber-500 mt-0.5 shrink-0">•</span>
                 <span>{z}</span>
@@ -515,7 +197,7 @@ function RecipeModal({ recipe, onClose }: { recipe: Recipe; onClose: () => void 
           {/* Anleitung */}
           <h3 className="font-semibold text-gray-900 mb-2">Anleitung</h3>
           <ol className="space-y-3 pb-2">
-            {recipe.schritte.map((s, i) => (
+            {schritte.map((s, i) => (
               <li key={i} className="flex gap-3 text-sm text-gray-700">
                 <span className="bg-amber-500 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5">
                   {i + 1}
@@ -530,26 +212,476 @@ function RecipeModal({ recipe, onClose }: { recipe: Recipe; onClose: () => void 
   )
 }
 
+// ── Recipe form modal (Add / Edit) ────────────────────────────────────────────
+
+const EMPTY_FORM = {
+  name: "",
+  emoji: "🍞",
+  beschreibung: "",
+  schwierigkeit: "Anfänger",
+  backzeit: "",
+  gesamtzeit: "",
+  ergebnis: "",
+  mehltyp: "",
+  imageUrl: "",
+  zutaten: [""],
+  schritte: [""],
+}
+
+function RecipeFormModal({
+  initial,
+  onSave,
+  onCancel,
+}: {
+  initial?: DbRecipe
+  onSave: (data: typeof EMPTY_FORM) => Promise<void>
+  onCancel: () => void
+}) {
+  const [form, setForm] = useState(() =>
+    initial
+      ? {
+          name: initial.name,
+          emoji: initial.emoji,
+          beschreibung: initial.beschreibung,
+          schwierigkeit: initial.schwierigkeit,
+          backzeit: initial.backzeit,
+          gesamtzeit: initial.gesamtzeit,
+          ergebnis: initial.ergebnis,
+          mehltyp: initial.mehltyp,
+          imageUrl: initial.imageUrl ?? "",
+          zutaten: parseZutaten(initial).length > 0 ? parseZutaten(initial) : [""],
+          schritte: parseSchritte(initial).length > 0 ? parseSchritte(initial) : [""],
+        }
+      : { ...EMPTY_FORM, zutaten: [""], schritte: [""] }
+  )
+  const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [imgPreviewError, setImgPreviewError] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  function setField<K extends keyof typeof EMPTY_FORM>(key: K, value: (typeof EMPTY_FORM)[K]) {
+    setForm((f) => ({ ...f, [key]: value }))
+  }
+
+  function setListItem(key: "zutaten" | "schritte", idx: number, value: string) {
+    setForm((f) => {
+      const arr = [...f[key]]
+      arr[idx] = value
+      return { ...f, [key]: arr }
+    })
+  }
+
+  function addListItem(key: "zutaten" | "schritte") {
+    setForm((f) => ({ ...f, [key]: [...f[key], ""] }))
+  }
+
+  function removeListItem(key: "zutaten" | "schritte", idx: number) {
+    setForm((f) => {
+      const arr = f[key].filter((_, i) => i !== idx)
+      return { ...f, [key]: arr.length > 0 ? arr : [""] }
+    })
+  }
+
+  function moveListItem(key: "zutaten" | "schritte", idx: number, dir: -1 | 1) {
+    setForm((f) => {
+      const arr = [...f[key]]
+      const target = idx + dir
+      if (target < 0 || target >= arr.length) return f
+      ;[arr[idx], arr[target]] = [arr[target], arr[idx]]
+      return { ...f, [key]: arr }
+    })
+  }
+
+  async function handleFileUpload(file: File) {
+    setUploading(true)
+    const fd = new FormData()
+    fd.append("file", file)
+    const res = await fetch("/api/brot/rezepte/upload", { method: "POST", body: fd })
+    if (res.ok) {
+      const { url } = await res.json()
+      setField("imageUrl", url)
+      setImgPreviewError(false)
+    }
+    setUploading(false)
+  }
+
+  async function handleSubmit() {
+    if (!form.name.trim()) return
+    setSaving(true)
+    await onSave({
+      ...form,
+      zutaten: form.zutaten.filter((z) => z.trim()),
+      schritte: form.schritte.filter((s) => s.trim()),
+    })
+    setSaving(false)
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
+      <div className="bg-white rounded-t-3xl md:rounded-2xl shadow-xl w-full max-w-lg max-h-[95vh] flex flex-col">
+        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
+          <h2 className="font-semibold text-gray-900 text-lg">{initial ? "Rezept bearbeiten" : "Neues Rezept"}</h2>
+          <button onClick={onCancel} className="text-gray-400 hover:text-gray-600 text-2xl leading-none w-8 h-8 flex items-center justify-center">×</button>
+        </div>
+
+        <div className="overflow-y-auto flex-1 px-5 py-4 space-y-5">
+          {/* Bild */}
+          <div>
+            <label className="text-sm font-medium text-gray-700 block mb-1">Bild</label>
+            {form.imageUrl && !imgPreviewError ? (
+              <div className="relative mb-2">
+                <img
+                  src={form.imageUrl}
+                  alt=""
+                  className="w-full h-40 object-cover rounded-xl"
+                  onError={() => setImgPreviewError(true)}
+                />
+                <button
+                  onClick={() => { setField("imageUrl", ""); setImgPreviewError(false) }}
+                  className="absolute top-2 right-2 bg-black/40 hover:bg-black/60 text-white w-7 h-7 rounded-full text-sm flex items-center justify-center"
+                >×</button>
+              </div>
+            ) : (
+              <div className="h-20 bg-amber-50 rounded-xl flex items-center justify-center mb-2 text-3xl">
+                {form.emoji || "🍞"}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={form.imageUrl}
+                onChange={(e) => { setField("imageUrl", e.target.value); setImgPreviewError(false) }}
+                placeholder="Bild-URL (optional)"
+                className="flex-1 text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
+              />
+              <button
+                onClick={() => fileRef.current?.click()}
+                disabled={uploading}
+                className="px-3 py-2 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl text-sm text-amber-700 font-medium disabled:opacity-50 shrink-0"
+              >
+                {uploading ? "…" : "📷 Upload"}
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f) }}
+              />
+            </div>
+          </div>
+
+          {/* Basis */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="col-span-2">
+              <label className="text-sm font-medium text-gray-700 block mb-1">Name *</label>
+              <input
+                type="text"
+                value={form.name}
+                onChange={(e) => setField("name", e.target.value)}
+                className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                placeholder="z.B. Roggenbrot"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 block mb-1">Emoji</label>
+              <input
+                type="text"
+                value={form.emoji}
+                onChange={(e) => setField("emoji", e.target.value)}
+                className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400 text-center text-xl"
+                maxLength={2}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-gray-700 block mb-1">Beschreibung</label>
+            <textarea
+              value={form.beschreibung}
+              onChange={(e) => setField("beschreibung", e.target.value)}
+              rows={3}
+              className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none"
+              placeholder="Kurze Beschreibung des Brots…"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-sm font-medium text-gray-700 block mb-1">Schwierigkeit</label>
+              <select
+                value={form.schwierigkeit}
+                onChange={(e) => setField("schwierigkeit", e.target.value)}
+                className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
+              >
+                <option>Anfänger</option>
+                <option>Mittel</option>
+                <option>Fortgeschritten</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 block mb-1">Mehltyp</label>
+              <input
+                type="text"
+                value={form.mehltyp}
+                onChange={(e) => setField("mehltyp", e.target.value)}
+                className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                placeholder="z.B. Roggen"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="text-sm font-medium text-gray-700 block mb-1">Backzeit</label>
+              <input
+                type="text"
+                value={form.backzeit}
+                onChange={(e) => setField("backzeit", e.target.value)}
+                className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                placeholder="60 Min."
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 block mb-1">Gesamtzeit</label>
+              <input
+                type="text"
+                value={form.gesamtzeit}
+                onChange={(e) => setField("gesamtzeit", e.target.value)}
+                className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                placeholder="18 Std."
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 block mb-1">Ergebnis</label>
+              <input
+                type="text"
+                value={form.ergebnis}
+                onChange={(e) => setField("ergebnis", e.target.value)}
+                className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                placeholder="1 Laib"
+              />
+            </div>
+          </div>
+
+          {/* Zutaten */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium text-gray-700">Zutaten</label>
+              <button
+                onClick={() => addListItem("zutaten")}
+                className="text-xs text-amber-600 hover:text-amber-700 font-medium"
+              >+ Zutat</button>
+            </div>
+            <div className="space-y-2">
+              {form.zutaten.map((z, i) => (
+                <div key={i} className="flex gap-1.5 items-center">
+                  <span className="text-amber-400 shrink-0 text-sm">•</span>
+                  <input
+                    type="text"
+                    value={z}
+                    onChange={(e) => setListItem("zutaten", i, e.target.value)}
+                    className="flex-1 text-sm border border-gray-200 rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    placeholder={`Zutat ${i + 1}`}
+                  />
+                  <button
+                    onClick={() => removeListItem("zutaten", i)}
+                    className="text-gray-300 hover:text-red-400 text-lg leading-none shrink-0"
+                  >×</button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Schritte */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-sm font-medium text-gray-700">Arbeitsschritte</label>
+              <button
+                onClick={() => addListItem("schritte")}
+                className="text-xs text-amber-600 hover:text-amber-700 font-medium"
+              >+ Schritt</button>
+            </div>
+            <div className="space-y-2">
+              {form.schritte.map((s, i) => (
+                <div key={i} className="flex gap-1.5 items-start">
+                  <div className="flex flex-col gap-0.5 shrink-0 mt-1">
+                    <button
+                      onClick={() => moveListItem("schritte", i, -1)}
+                      disabled={i === 0}
+                      className="text-gray-300 hover:text-gray-500 disabled:opacity-20 text-xs leading-none"
+                    >▲</button>
+                    <span className="bg-amber-400 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                      {i + 1}
+                    </span>
+                    <button
+                      onClick={() => moveListItem("schritte", i, 1)}
+                      disabled={i === form.schritte.length - 1}
+                      className="text-gray-300 hover:text-gray-500 disabled:opacity-20 text-xs leading-none"
+                    >▼</button>
+                  </div>
+                  <textarea
+                    value={s}
+                    onChange={(e) => setListItem("schritte", i, e.target.value)}
+                    rows={2}
+                    className="flex-1 text-sm border border-gray-200 rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none"
+                    placeholder={`Schritt ${i + 1}…`}
+                  />
+                  <button
+                    onClick={() => removeListItem("schritte", i)}
+                    className="text-gray-300 hover:text-red-400 text-lg leading-none shrink-0 mt-1"
+                  >×</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="px-5 pb-5 pt-3 border-t border-gray-100 flex gap-2 shrink-0">
+          <button
+            onClick={onCancel}
+            className="flex-1 px-4 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50"
+          >
+            Abbrechen
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={saving || !form.name.trim()}
+            className="flex-1 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium disabled:opacity-50"
+          >
+            {saving ? "Speichern…" : initial ? "Speichern" : "Rezept erstellen"}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Rezepte tab ───────────────────────────────────────────────────────────────
 
 function RezepteTab() {
-  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null)
+  const [recipes, setRecipes] = useState<DbRecipe[] | null>(null)
+  const [selectedRecipe, setSelectedRecipe] = useState<DbRecipe | null>(null)
+  const [editRecipe, setEditRecipe] = useState<DbRecipe | null | "new">(null)
+  const [deleteId, setDeleteId] = useState<string | null>(null)
+
+  async function load() {
+    const res = await fetch("/api/brot/rezepte")
+    if (res.ok) setRecipes(await res.json())
+  }
+
+  useEffect(() => { load() }, [])
+
+  async function handleSave(data: typeof EMPTY_FORM) {
+    if (editRecipe === "new") {
+      await fetch("/api/brot/rezepte", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      })
+    } else if (editRecipe) {
+      await fetch(`/api/brot/rezepte/${editRecipe.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      })
+    }
+    await load()
+    setEditRecipe(null)
+  }
+
+  async function handleDelete(id: string) {
+    await fetch(`/api/brot/rezepte/${id}`, { method: "DELETE" })
+    await load()
+    setDeleteId(null)
+    if (selectedRecipe?.id === id) setSelectedRecipe(null)
+  }
+
+  if (!recipes) {
+    return (
+      <div className="flex items-center justify-center h-full text-gray-400 text-sm">Lade Rezepte…</div>
+    )
+  }
 
   return (
     <div className="flex flex-col h-full">
-      <div className="p-4 md:p-6 bg-white border-b border-gray-200 shrink-0">
-        <h2 className="font-semibold text-gray-900">Brot-Rezepte</h2>
-        <p className="text-xs text-gray-500 mt-0.5">{REZEPTE.length} Rezepte mit Sauerteig</p>
-      </div>
-      <div className="flex-1 overflow-y-auto p-4 md:p-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {REZEPTE.map((r) => (
-            <RecipeCard key={r.id} recipe={r} onClick={() => setSelectedRecipe(r)} />
-          ))}
+      <div className="p-4 md:p-6 bg-white border-b border-gray-200 flex items-center justify-between shrink-0">
+        <div>
+          <h2 className="font-semibold text-gray-900">Brot-Rezepte</h2>
+          <p className="text-xs text-gray-500 mt-0.5">{recipes.length} Rezepte</p>
         </div>
+        <button
+          onClick={() => setEditRecipe("new")}
+          className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors"
+        >
+          + Rezept
+        </button>
       </div>
+
+      <div className="flex-1 overflow-y-auto p-4 md:p-6">
+        {recipes.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <span className="text-5xl mb-4">📖</span>
+            <p className="text-gray-500 text-sm">Noch keine Rezepte vorhanden.</p>
+            <button
+              onClick={() => setEditRecipe("new")}
+              className="mt-4 bg-amber-500 hover:bg-amber-600 text-white px-6 py-2.5 rounded-xl text-sm font-medium"
+            >
+              Erstes Rezept erstellen 🍞
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {recipes.map((r) => (
+              <RecipeCard
+                key={r.id}
+                recipe={r}
+                onClick={() => setSelectedRecipe(r)}
+                onEdit={(e) => { e.stopPropagation(); setEditRecipe(r) }}
+                onDelete={(e) => { e.stopPropagation(); setDeleteId(r.id) }}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Detail modal */}
       {selectedRecipe && (
         <RecipeModal recipe={selectedRecipe} onClose={() => setSelectedRecipe(null)} />
+      )}
+
+      {/* Add / Edit modal */}
+      {editRecipe !== null && (
+        <RecipeFormModal
+          initial={editRecipe === "new" ? undefined : editRecipe}
+          onSave={handleSave}
+          onCancel={() => setEditRecipe(null)}
+        />
+      )}
+
+      {/* Delete confirm */}
+      {deleteId && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl p-5 w-full max-w-xs text-center">
+            <p className="text-2xl mb-3">🗑️</p>
+            <p className="font-semibold text-gray-900 mb-1">Rezept löschen?</p>
+            <p className="text-sm text-gray-500 mb-5">Diese Aktion kann nicht rückgängig gemacht werden.</p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setDeleteId(null)}
+                className="flex-1 px-4 py-2 rounded-xl border border-gray-200 text-sm text-gray-600"
+              >
+                Abbrechen
+              </button>
+              <button
+                onClick={() => handleDelete(deleteId)}
+                className="flex-1 px-4 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-medium"
+              >
+                Löschen
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
