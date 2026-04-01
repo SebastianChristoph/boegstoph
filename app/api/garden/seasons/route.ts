@@ -43,6 +43,17 @@ export async function POST(req: NextRequest) {
   const body = await req.json()
   const { plantId, year, bedId } = body
 
+  const existing = await prisma.gardenSeason.findFirst({
+    where: { plantId, year: parseInt(year), bedId: bedId || null },
+  })
+  if (existing) {
+    const full = await prisma.gardenSeason.findUnique({
+      where: { id: existing.id },
+      include: { plant: true, bed: true, diary: true },
+    })
+    return NextResponse.json(full, { status: 200 })
+  }
+
   const season = await prisma.gardenSeason.create({
     data: {
       plantId,
