@@ -27,3 +27,14 @@ export async function POST(req: Request) {
   broadcast("kniffel", { type: "chat", game: updated })
   return NextResponse.json(updated)
 }
+
+export async function DELETE() {
+  const game = await prisma.kniffelGame.findFirst({ orderBy: { createdAt: "desc" } })
+  if (!game) return NextResponse.json({ error: "no game" }, { status: 404 })
+  const updated = await prisma.kniffelGame.update({
+    where: { id: game.id },
+    data: { messages: "[]" },
+  })
+  broadcast("kniffel", { type: "chat", game: updated })
+  return NextResponse.json(updated)
+}

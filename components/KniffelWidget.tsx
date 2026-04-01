@@ -525,6 +525,15 @@ export default function KniffelWidget() {
 
               {/* Chat */}
               <div className="border-t border-gray-100 pt-3">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-[11px] font-medium text-gray-500">Chat</span>
+                  {chatMessages.length > 0 && (
+                    <button onClick={async () => { const r = await fetch("/api/kniffel/chat", { method: "DELETE" }); if (r.ok) setGame(await r.json()) }}
+                      className="text-[10px] text-gray-400 hover:text-red-400 transition-colors">
+                      Chat löschen
+                    </button>
+                  )}
+                </div>
                 <div className="max-h-28 overflow-y-auto space-y-1.5 mb-2">
                   {chatMessages.length === 0
                     ? <p className="text-[11px] text-gray-300 text-center italic">Noch keine Nachrichten</p>
