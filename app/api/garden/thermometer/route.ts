@@ -24,11 +24,14 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const { csv } = await req.json()
+  const body = await req.json()
+  const { csv, source } = body as { csv?: string; source?: string }
+
   if (!csv || typeof csv !== "string") {
     return NextResponse.json({ error: "csv string required" }, { status: 400 })
   }
 
+  const resolvedSource = source === "out" ? "out" : "gh"
   const readings = parseThermometerCSV(csv)
   if (!readings.length) {
     return NextResponse.json({ error: "Keine gültigen Messwerte in der CSV gefunden" }, { status: 400 })
@@ -37,9 +40,9 @@ export async function POST(req: NextRequest) {
   let imported = 0
   for (const r of readings) {
     await prisma.gardenThermometerReading.upsert({
-      where: { timestamp: r.timestamp },
+      where: { timestamp_source: { timestamp: r.timestamp, source: resolvedSource } },
       update: { temperature: r.temperature, humidity: r.humidity },
-      create: { timestamp: r.timestamp, temperature: r.temperature, humidity: r.humidity },
+      create: { timestamp: r.timestamp, source: resolvedSource, temperature: r.temperature, humidity: r.humidity },
     })
     imported++
   }

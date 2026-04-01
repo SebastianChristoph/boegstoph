@@ -3,6 +3,13 @@
 
 const { PrismaClient } = require("@prisma/client")
 
+function detectSource(filename) {
+  const lower = filename.toLowerCase()
+  if (lower.includes("out")) return "out"
+  if (lower.includes("gh")) return "gh"
+  return "gh" // fallback: bisherige Daten sind Gewächshaus
+}
+
 // Rekursiv CSV-Part in der MIME-Struktur suchen
 function findCsvPart(node) {
   if (!node) return null
@@ -10,7 +17,7 @@ function findCsvPart(node) {
   const fname = (node.parameters && node.parameters.name) || ""
   const disp = node.disposition && node.disposition.type
   if (t === "text/csv" || fname.toLowerCase().endsWith(".csv") || (disp === "attachment" && fname)) {
-    return node.part || "1"
+    return { part: node.part || "1", filename: fname }
   }
   if (node.childNodes) {
     for (const child of node.childNodes) {
@@ -52,8 +59,9 @@ async function main() {
 
   await client.connect()
 
-  let csv = null
-  let foundUid = null
+  // Sammle alle CSV-Anhänge mit Source-Erkennung
+  const found = {} // source -> { csv, uid }
+
   try {
     await client.mailboxOpen("INBOX")
     const since = new Date(Date.now() - 2 * 86400000)
@@ -64,72 +72,79 @@ async function main() {
       return
     }
 
-    // Neueste Mail zuerst: Struktur holen, CSV-Part identifizieren
+    // Neueste Mail zuerst
     for (let i = uids.length - 1; i >= 0; i--) {
+      if (Object.keys(found).length === 2) break // beide Thermometer gefunden
+
       const uid = uids[i]
-      let csvPart = null
+      let csvInfo = null
 
       for await (const msg of client.fetch([uid], { bodyStructure: true }, { uid: true })) {
         if (!msg.bodyStructure) continue
-        csvPart = findCsvPart(msg.bodyStructure)
+        csvInfo = findCsvPart(msg.bodyStructure)
       }
 
-      if (!csvPart) continue
+      if (!csvInfo) continue
 
-      // Nur den CSV-Anhang streamen, nicht die ganze Mail
-      const dl = await client.download(String(uid), csvPart, { uid: true })
+      const source = detectSource(csvInfo.filename)
+      if (found[source]) continue // diese Source haben wir schon
+
+      const dl = await client.download(String(uid), csvInfo.part, { uid: true })
       if (!dl) continue
 
-      csv = await readStream(dl.content)
-      foundUid = uid
-      break
+      const csv = await readStream(dl.content)
+      found[source] = { csv, uid }
     }
 
-    if (foundUid) {
-      await client.messageFlagsAdd([foundUid], ["\\Seen"], { uid: true })
+    // Alle gefundenen als gelesen markieren
+    for (const { uid } of Object.values(found)) {
+      await client.messageFlagsAdd([uid], ["\\Seen"], { uid: true })
     }
   } finally {
     await client.logout()
   }
 
-  if (!csv) {
+  if (!Object.keys(found).length) {
     console.log("Keine CSV im Anhang gefunden")
     return
   }
 
-  // CSV parsen (BOM streifen)
-  const lines = csv.replace(/^\uFEFF/, "").trim().split(/\r?\n/)
-  const readings = []
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i].trim()
-    if (!line) continue
-    const parts = line.split(",")
-    if (parts.length < 3) continue
-    const timestamp = new Date(parts[0].trim())
-    const temperature = parseFloat(parts[1].trim())
-    const humidity = parseFloat(parts[2].trim())
-    if (isNaN(timestamp.getTime()) || isNaN(temperature) || isNaN(humidity)) continue
-    readings.push({ timestamp, temperature, humidity })
-  }
-
-  if (!readings.length) {
-    console.log("Keine gültigen Messwerte in der CSV")
-    return
-  }
-
+  // CSV parsen und in DB schreiben
   const prisma = new PrismaClient()
-  let imported = 0
-  for (const r of readings) {
-    await prisma.gardenThermometerReading.upsert({
-      where: { timestamp: r.timestamp },
-      update: { temperature: r.temperature, humidity: r.humidity },
-      create: { timestamp: r.timestamp, temperature: r.temperature, humidity: r.humidity },
-    })
-    imported++
-  }
-  await prisma.$disconnect()
 
-  console.log(`Importiert: ${imported} Messwerte`)
+  for (const [source, { csv }] of Object.entries(found)) {
+    const lines = csv.replace(/^\uFEFF/, "").trim().split(/\r?\n/)
+    const readings = []
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim()
+      if (!line) continue
+      const parts = line.split(",")
+      if (parts.length < 3) continue
+      const timestamp = new Date(parts[0].trim())
+      const temperature = parseFloat(parts[1].trim())
+      const humidity = parseFloat(parts[2].trim())
+      if (isNaN(timestamp.getTime()) || isNaN(temperature) || isNaN(humidity)) continue
+      readings.push({ timestamp, temperature, humidity })
+    }
+
+    if (!readings.length) {
+      console.log(`[${source}] Keine gültigen Messwerte in der CSV`)
+      continue
+    }
+
+    let imported = 0
+    for (const r of readings) {
+      await prisma.gardenThermometerReading.upsert({
+        where: { timestamp_source: { timestamp: r.timestamp, source } },
+        update: { temperature: r.temperature, humidity: r.humidity },
+        create: { timestamp: r.timestamp, source, temperature: r.temperature, humidity: r.humidity },
+      })
+      imported++
+    }
+    console.log(`[${source}] Importiert: ${imported} Messwerte`)
+  }
+
+  await prisma.$disconnect()
 }
 
 main().catch(e => { console.error("Fehler:", e.message); process.exit(1) })

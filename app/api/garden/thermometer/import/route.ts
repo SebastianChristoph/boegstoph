@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { fetchLatestThermometerCSV } from "@/lib/imap"
+import { fetchAllThermometerCSVs } from "@/lib/imap"
 import { parseThermometerCSV } from "@/lib/thermometerParser"
 
 export const dynamic = "force-dynamic"
@@ -16,24 +16,30 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const csv = await fetchLatestThermometerCSV()
-    if (!csv) {
+    const csvResults = await fetchAllThermometerCSVs()
+    if (!csvResults.length) {
       return NextResponse.json({ message: "Keine CSV in der Mailbox gefunden" })
     }
 
-    const readings = parseThermometerCSV(csv)
-    let imported = 0
+    const summary: Record<string, number> = {}
 
-    for (const r of readings) {
-      await prisma.gardenThermometerReading.upsert({
-        where: { timestamp: r.timestamp },
-        update: { temperature: r.temperature, humidity: r.humidity },
-        create: { timestamp: r.timestamp, temperature: r.temperature, humidity: r.humidity },
-      })
-      imported++
+    for (const { csv, source } of csvResults) {
+      const readings = parseThermometerCSV(csv)
+      let imported = 0
+
+      for (const r of readings) {
+        await prisma.gardenThermometerReading.upsert({
+          where: { timestamp_source: { timestamp: r.timestamp, source } },
+          update: { temperature: r.temperature, humidity: r.humidity },
+          create: { timestamp: r.timestamp, source, temperature: r.temperature, humidity: r.humidity },
+        })
+        imported++
+      }
+
+      summary[source] = imported
     }
 
-    return NextResponse.json({ imported })
+    return NextResponse.json({ imported: summary })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unbekannter Fehler"
     return NextResponse.json({ error: message }, { status: 500 })

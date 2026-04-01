@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 interface Reading {
   id: string
   timestamp: string
+  source: string
   temperature: number
   humidity: number
 }
@@ -29,6 +30,7 @@ interface ThermometerStats {
 }
 
 type Range = "24h" | "7d" | "30d" | "alle"
+type Source = "gh" | "out"
 
 const RANGES: { id: Range; label: string }[] = [
   { id: "24h", label: "24 Std." },
@@ -36,6 +38,16 @@ const RANGES: { id: Range; label: string }[] = [
   { id: "30d", label: "30 Tage" },
   { id: "alle", label: "Alle" },
 ]
+
+const SOURCE_LABELS: Record<Source, string> = {
+  gh: "Gewächshaus",
+  out: "Outdoor",
+}
+
+const SOURCE_COLORS: Record<Source, { temp: string; hum: string }> = {
+  gh:  { temp: "#f97316", hum: "#3b82f6" },
+  out: { temp: "#22c55e", hum: "#06b6d4" },
+}
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -54,28 +66,34 @@ function fmtTime(ts: string) {
   return new Date(ts).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" })
 }
 
-// ── SVG Line Chart ─────────────────────────────────────────────────────────────
+// ── SVG Dual-Line Chart ────────────────────────────────────────────────────────
 
 interface ChartPoint { ts: number; val: number }
 
-function LineChart({ data, color, unit, range }: { data: ChartPoint[]; color: string; unit: string; range: Range }) {
-  if (data.length < 2) return null
+interface Series { data: ChartPoint[]; color: string; label: string }
 
-  const W = 400, H = 90
+function DualLineChart({ series, unit, range }: { series: Series[]; unit: string; range: Range }) {
+  const active = series.filter(s => s.data.length >= 2)
+  if (!active.length) return null
+
+  const W = 400, H = 100
   const PAD = { top: 10, right: 8, bottom: 22, left: 38 }
   const iW = W - PAD.left - PAD.right
   const iH = H - PAD.top - PAD.bottom
 
-  const vals = data.map(d => d.val)
-  const lo = Math.min(...vals), hi = Math.max(...vals)
+  const allVals = active.flatMap(s => s.data.map(d => d.val))
+  const lo = Math.min(...allVals), hi = Math.max(...allVals)
   const valSpan = hi - lo || 1, pad = valSpan * 0.1
-  const minTs = data[0].ts, maxTs = data[data.length - 1].ts
+
+  const allTs = active.flatMap(s => s.data.map(d => d.ts))
+  const minTs = Math.min(...allTs), maxTs = Math.max(...allTs)
   const tsSpan = maxTs - minTs || 1
 
   const toX = (ts: number) => PAD.left + ((ts - minTs) / tsSpan) * iW
   const toY = (val: number) => PAD.top + iH - ((val - (lo - pad)) / (valSpan + 2 * pad)) * iH
-  const pts = data.map(d => `${toX(d.ts).toFixed(1)},${toY(d.val).toFixed(1)}`).join(" ")
-  const xLabels = [data[0], data[Math.floor(data.length / 2)], data[data.length - 1]]
+
+  const refSeries = active[0]
+  const xLabels = [refSeries.data[0], refSeries.data[Math.floor(refSeries.data.length / 2)], refSeries.data[refSeries.data.length - 1]]
 
   function fmtX(ts: number) {
     const d = new Date(ts)
@@ -98,7 +116,13 @@ function LineChart({ data, color, unit, range }: { data: ChartPoint[]; color: st
           {fmtX(d.ts)}
         </text>
       ))}
-      <polyline fill="none" stroke={color} strokeWidth={1.8} strokeLinejoin="round" strokeLinecap="round" points={pts} />
+      {active.map(s => {
+        const pts = s.data.map(d => `${toX(d.ts).toFixed(1)},${toY(d.val).toFixed(1)}`).join(" ")
+        return (
+          <polyline key={s.label} fill="none" stroke={s.color} strokeWidth={1.8}
+            strokeLinejoin="round" strokeLinecap="round" points={pts} />
+        )
+      })}
     </svg>
   )
 }
@@ -153,16 +177,24 @@ function HourlyChart({ profile, color, unit }: {
 
 // ── Stats Row ──────────────────────────────────────────────────────────────────
 
-function StatsRow({ vals, unit }: { vals: number[]; unit: string }) {
-  if (!vals.length) return null
-  const min = Math.min(...vals)
-  const max = Math.max(...vals)
-  const avg = vals.reduce((a, b) => a + b, 0) / vals.length
+function StatsRow({ ghVals, outVals, unit }: { ghVals: number[]; outVals: number[]; unit: string }) {
+  const rows: { label: string; vals: number[]; color: string }[] = []
+  if (ghVals.length) rows.push({ label: "GH", vals: ghVals, color: "text-orange-500" })
+  if (outVals.length) rows.push({ label: "Out", vals: outVals, color: "text-green-500" })
+  if (!rows.length) return null
   return (
-    <div className="flex gap-3 text-xs text-gray-500 mt-1 mb-2">
-      <span>Min <strong className="text-gray-700">{min.toFixed(1)}{unit}</strong></span>
-      <span>Ø <strong className="text-gray-700">{avg.toFixed(1)}{unit}</strong></span>
-      <span>Max <strong className="text-gray-700">{max.toFixed(1)}{unit}</strong></span>
+    <div className="space-y-0.5 mb-2">
+      {rows.map(r => {
+        const min = Math.min(...r.vals), max = Math.max(...r.vals), avg = r.vals.reduce((a, b) => a + b, 0) / r.vals.length
+        return (
+          <div key={r.label} className="flex gap-3 text-xs text-gray-500">
+            <span className={`font-semibold w-7 ${r.color}`}>{r.label}</span>
+            <span>Min <strong className="text-gray-700">{min.toFixed(1)}{unit}</strong></span>
+            <span>Ø <strong className="text-gray-700">{avg.toFixed(1)}{unit}</strong></span>
+            <span>Max <strong className="text-gray-700">{max.toFixed(1)}{unit}</strong></span>
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -186,6 +218,7 @@ export default function DataTab() {
   const [loading, setLoading] = useState(true)
   const [importing, setImporting] = useState(false)
   const [importStatus, setImportStatus] = useState<string | null>(null)
+  const [uploadSource, setUploadSource] = useState<Source>("gh")
   const fileRef = useRef<HTMLInputElement>(null)
 
   const load = useCallback(async (r: Range) => {
@@ -214,11 +247,11 @@ export default function DataTab() {
       const res = await fetch("/api/garden/thermometer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ csv }),
+        body: JSON.stringify({ csv, source: uploadSource }),
       })
       const data = await res.json()
       if (res.ok) {
-        setImportStatus(`✓ ${data.imported} Messwerte importiert`)
+        setImportStatus(`✓ ${data.imported} Messwerte importiert (${SOURCE_LABELS[uploadSource]})`)
         load(range)
       } else {
         setImportStatus(`✗ ${data.error}`)
@@ -231,36 +264,71 @@ export default function DataTab() {
     }
   }
 
-  const latest = readings.length > 0 ? readings[readings.length - 1] : null
-  const tempData: ChartPoint[] = readings.map(r => ({ ts: new Date(r.timestamp).getTime(), val: r.temperature }))
-  const humData: ChartPoint[] = readings.map(r => ({ ts: new Date(r.timestamp).getTime(), val: r.humidity }))
+  const ghReadings = readings.filter(r => r.source === "gh")
+  const outReadings = readings.filter(r => r.source === "out")
+
+  const latestGh = ghReadings.length > 0 ? ghReadings[ghReadings.length - 1] : null
+  const latestOut = outReadings.length > 0 ? outReadings[outReadings.length - 1] : null
+
+  const tempSeries: Series[] = [
+    { data: ghReadings.map(r => ({ ts: new Date(r.timestamp).getTime(), val: r.temperature })), color: SOURCE_COLORS.gh.temp, label: "GH" },
+    { data: outReadings.map(r => ({ ts: new Date(r.timestamp).getTime(), val: r.temperature })), color: SOURCE_COLORS.out.temp, label: "Out" },
+  ]
+  const humSeries: Series[] = [
+    { data: ghReadings.map(r => ({ ts: new Date(r.timestamp).getTime(), val: r.humidity })), color: SOURCE_COLORS.gh.hum, label: "GH" },
+    { data: outReadings.map(r => ({ ts: new Date(r.timestamp).getTime(), val: r.humidity })), color: SOURCE_COLORS.out.hum, label: "Out" },
+  ]
+
+  const hasAnyReadings = readings.length > 0
 
   return (
     <div className="space-y-4">
-      {/* ── Latest reading ─────────────────────────────────────────────────── */}
-      {latest ? (
-        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4">
-          <div className="text-xs text-gray-400 mb-2">
-            Letzter Messwert · {fmtDateTime(latest.timestamp)}
-          </div>
-          <div className="flex gap-6 items-end">
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-3xl font-bold text-orange-500">{latest.temperature.toFixed(1)}</span>
-              <span className="text-lg text-orange-400">°C</span>
-              <span className="text-sm text-gray-400 ml-1">🌡️</span>
-            </div>
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-3xl font-bold text-blue-500">{latest.humidity.toFixed(1)}</span>
-              <span className="text-lg text-blue-400">%</span>
-              <span className="text-sm text-gray-400 ml-1">💧</span>
-            </div>
-            {stats && (
-              <div className="ml-auto text-right">
-                <div className="text-[11px] text-gray-400">{stats.daysTracked} {stats.daysTracked === 1 ? "Tag" : "Tage"} erfasst</div>
-                <div className="text-[11px] text-gray-400">{stats.totalReadings} Messungen</div>
+      {/* ── Latest readings ─────────────────────────────────────────────────── */}
+      {(latestGh || latestOut) ? (
+        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4 space-y-3">
+          {latestGh && (
+            <div>
+              <div className="text-xs text-gray-400 mb-1.5">
+                🏠 Gewächshaus · {fmtDateTime(latestGh.timestamp)}
               </div>
-            )}
-          </div>
+              <div className="flex gap-6 items-end">
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-2xl font-bold text-orange-500">{latestGh.temperature.toFixed(1)}</span>
+                  <span className="text-base text-orange-400">°C</span>
+                  <span className="text-sm text-gray-400 ml-1">🌡️</span>
+                </div>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-2xl font-bold text-blue-500">{latestGh.humidity.toFixed(1)}</span>
+                  <span className="text-base text-blue-400">%</span>
+                  <span className="text-sm text-gray-400 ml-1">💧</span>
+                </div>
+              </div>
+            </div>
+          )}
+          {latestOut && (
+            <div>
+              <div className="text-xs text-gray-400 mb-1.5">
+                🌤️ Outdoor · {fmtDateTime(latestOut.timestamp)}
+              </div>
+              <div className="flex gap-6 items-end">
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-2xl font-bold text-green-500">{latestOut.temperature.toFixed(1)}</span>
+                  <span className="text-base text-green-400">°C</span>
+                  <span className="text-sm text-gray-400 ml-1">🌡️</span>
+                </div>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-2xl font-bold text-cyan-500">{latestOut.humidity.toFixed(1)}</span>
+                  <span className="text-base text-cyan-400">%</span>
+                  <span className="text-sm text-gray-400 ml-1">💧</span>
+                </div>
+              </div>
+            </div>
+          )}
+          {stats && (
+            <div className="text-[11px] text-gray-400">
+              {stats.daysTracked} {stats.daysTracked === 1 ? "Tag" : "Tage"} erfasst · {stats.totalReadings} Messungen (GH)
+            </div>
+          )}
         </div>
       ) : !loading ? (
         <div className="text-center py-12 text-gray-400">
@@ -282,30 +350,57 @@ export default function DataTab() {
         ))}
       </div>
 
-      {/* ── Line charts ────────────────────────────────────────────────────── */}
-      {readings.length >= 2 && (
+      {/* ── Legende ────────────────────────────────────────────────────────── */}
+      {hasAnyReadings && (
+        <div className="flex gap-4 text-xs text-gray-500">
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block w-3 h-1 rounded-full bg-orange-500" />
+            <span className="inline-block w-3 h-1 rounded-full bg-blue-500 ml-0.5" />
+            Gewächshaus
+          </span>
+          {outReadings.length > 0 && (
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block w-3 h-1 rounded-full bg-green-500" />
+              <span className="inline-block w-3 h-1 rounded-full bg-cyan-500 ml-0.5" />
+              Outdoor
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* ── Dual Line charts ───────────────────────────────────────────────── */}
+      {hasAnyReadings && (
         <>
           <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4">
             <div className="text-sm font-medium text-gray-700 mb-1">🌡️ Temperatur</div>
-            <StatsRow vals={readings.map(r => r.temperature)} unit="°C" />
-            <LineChart data={tempData} color="#f97316" unit="°C" range={range} />
+            <StatsRow
+              ghVals={ghReadings.map(r => r.temperature)}
+              outVals={outReadings.map(r => r.temperature)}
+              unit="°C"
+            />
+            <DualLineChart series={tempSeries} unit="°C" range={range} />
           </div>
           <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4">
             <div className="text-sm font-medium text-gray-700 mb-1">💧 Luftfeuchtigkeit</div>
-            <StatsRow vals={readings.map(r => r.humidity)} unit="%" />
-            <LineChart data={humData} color="#3b82f6" unit="%" range={range} />
+            <StatsRow
+              ghVals={ghReadings.map(r => r.humidity)}
+              outVals={outReadings.map(r => r.humidity)}
+              unit="%"
+            />
+            <DualLineChart series={humSeries} unit="%" range={range} />
           </div>
         </>
       )}
 
       {loading && <div className="text-center py-8 text-gray-400 text-sm">Lade Daten…</div>}
 
-      {/* ── Stats section (all from complete dataset) ──────────────────────── */}
+      {/* ── Stats section (GH-Daten) ────────────────────────────────────────── */}
       {stats && (
         <>
           {/* Rekorde */}
           <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4">
-            <div className="text-sm font-medium text-gray-700 mb-3">🏆 Rekorde</div>
+            <div className="text-sm font-medium text-gray-700 mb-1">🏆 Rekorde</div>
+            <p className="text-[10px] text-gray-400 mb-3">Gewächshaus-Daten</p>
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-orange-50 rounded-xl p-3">
                 <div className="text-[11px] text-orange-400 mb-1">Wärmste Messung</div>
@@ -332,7 +427,8 @@ export default function DataTab() {
 
           {/* Saison-Kennzahlen */}
           <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4">
-            <div className="text-sm font-medium text-gray-700 mb-3">🌱 Saison-Kennzahlen</div>
+            <div className="text-sm font-medium text-gray-700 mb-1">🌱 Saison-Kennzahlen</div>
+            <p className="text-[10px] text-gray-400 mb-3">Gewächshaus-Daten</p>
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-gray-50 rounded-xl p-3">
                 <div className="text-[11px] text-gray-400 mb-1">❄️ Frosttage</div>
@@ -355,13 +451,14 @@ export default function DataTab() {
           {/* Tagesverlauf */}
           <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4">
             <div className="text-sm font-medium text-gray-700 mb-1">🕐 Typischer Tagesverlauf</div>
-            <p className="text-[11px] text-gray-400 mb-3">Ø Temperatur pro Stunde über alle erfassten Tage</p>
+            <p className="text-[11px] text-gray-400 mb-3">Ø Temperatur pro Stunde · Gewächshaus</p>
             <HourlyChart profile={stats.hourlyProfile} color="#f97316" unit="°C" />
           </div>
 
           {/* Wochenvergleich */}
           <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4">
-            <div className="text-sm font-medium text-gray-700 mb-3">📅 Wochenvergleich</div>
+            <div className="text-sm font-medium text-gray-700 mb-1">📅 Wochenvergleich</div>
+            <p className="text-[10px] text-gray-400 mb-3">Gewächshaus-Daten</p>
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-gray-50 rounded-xl p-3">
                 <div className="text-[11px] text-gray-400 mb-2">Diese Woche</div>
@@ -416,7 +513,8 @@ export default function DataTab() {
           {/* Tageshöchst-/Tiefstwerte Timeline */}
           {stats.dailyExtremes.length > 1 && (
             <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4">
-              <div className="text-sm font-medium text-gray-700 mb-3">📊 Tägliche Extremwerte</div>
+              <div className="text-sm font-medium text-gray-700 mb-1">📊 Tägliche Extremwerte</div>
+              <p className="text-[10px] text-gray-400 mb-3">Gewächshaus-Daten</p>
               <div className="space-y-2">
                 {stats.dailyExtremes.slice(-7).map(d => {
                   const date = new Date(d.date + "T12:00:00Z").toLocaleDateString("de-DE", {
@@ -452,6 +550,16 @@ export default function DataTab() {
         <p className="text-xs text-gray-400 mb-3">
           CSV-Export vom Thermometer hier hochladen. Duplikate werden automatisch übersprungen.
         </p>
+        <div className="flex gap-2 mb-3">
+          {(["gh", "out"] as Source[]).map(s => (
+            <button key={s} onClick={() => setUploadSource(s)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${
+                uploadSource === s ? "bg-primary-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}>
+              {s === "gh" ? "🏠 Gewächshaus" : "🌤️ Outdoor"}
+            </button>
+          ))}
+        </div>
         <label className={`flex items-center justify-center gap-2 w-full border-2 border-dashed border-gray-300 hover:border-primary-400 rounded-xl py-2.5 text-sm text-gray-500 hover:text-primary-600 transition-colors cursor-pointer ${importing ? "opacity-50 pointer-events-none" : ""}`}>
           {importing ? "Importiere…" : "CSV-Datei auswählen"}
           <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleFile} />

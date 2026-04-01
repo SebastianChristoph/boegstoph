@@ -9,6 +9,7 @@ function avg(arr: number[]) {
 
 export async function GET() {
   const all = await prisma.gardenThermometerReading.findMany({
+    where: { source: "gh" },
     orderBy: { timestamp: "asc" },
   })
 

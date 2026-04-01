@@ -185,10 +185,13 @@ model KniffelGame {
 
 model GardenThermometerReading {
   id          String   @id @default(cuid())
-  timestamp   DateTime @unique
+  timestamp   DateTime
+  source      String   @default("gh") // "gh" = Gewächshaus, "out" = Outdoor
   temperature Float
   humidity    Float
   createdAt   DateTime @default(now())
+
+  @@unique([timestamp, source])
 }
 
 model SauerteigBatch {
