@@ -190,3 +190,24 @@ model GardenThermometerReading {
   humidity    Float
   createdAt   DateTime @default(now())
 }
+
+model SauerteigBatch {
+  id        String          @id @default(cuid())
+  type      String          // "Roggen" | "Weizen" | "Dinkel"
+  startedAt DateTime
+  status    String          @default("active") // "active" | "archived"
+  createdAt DateTime        @default(now())
+  todos     SauerteigTodo[]
+}
+
+model SauerteigTodo {
+  id        String         @id @default(cuid())
+  batchId   String
+  batch     SauerteigBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  title     String
+  detail    String
+  dueDate   DateTime
+  doneAt    DateTime?
+  sortOrder Int            @default(0)
+  createdAt DateTime       @default(now())
+}
