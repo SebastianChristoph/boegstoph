@@ -45,8 +45,8 @@ const SOURCE_LABELS: Record<Source, string> = {
 }
 
 const SOURCE_COLORS: Record<Source, { temp: string; hum: string }> = {
-  gh:  { temp: "#f97316", hum: "#3b82f6" },
-  out: { temp: "#22c55e", hum: "#06b6d4" },
+  gh:  { temp: "#f97316", hum: "#f97316" },
+  out: { temp: "#22c55e", hum: "#22c55e" },
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -269,10 +269,10 @@ function HourlyChart({ profile, color, unit }: {
 
 // ── Stats Row ──────────────────────────────────────────────────────────────────
 
-function StatsRow({ ghVals, outVals, unit }: { ghVals: number[]; outVals: number[]; unit: string }) {
+function StatsRow({ ghVals, outVals, unit, ghColor = "text-orange-500", outColor = "text-green-500" }: { ghVals: number[]; outVals: number[]; unit: string; ghColor?: string; outColor?: string }) {
   const rows: { label: string; vals: number[]; color: string }[] = []
-  if (ghVals.length) rows.push({ label: "GH", vals: ghVals, color: "text-orange-500" })
-  if (outVals.length) rows.push({ label: "Out", vals: outVals, color: "text-green-500" })
+  if (ghVals.length) rows.push({ label: "GH", vals: ghVals, color: ghColor })
+  if (outVals.length) rows.push({ label: "Out", vals: outVals, color: outColor })
   if (!rows.length) return null
   return (
     <div className="space-y-0.5 mb-2">
@@ -458,13 +458,11 @@ export default function DataTab() {
         <div className="flex gap-4 text-xs text-gray-500">
           <span className="flex items-center gap-1.5">
             <span className="inline-block w-3 h-1 rounded-full bg-orange-500" />
-            <span className="inline-block w-3 h-1 rounded-full bg-blue-500 ml-0.5" />
             Gewächshaus
           </span>
           {outReadings.length > 0 && (
             <span className="flex items-center gap-1.5">
               <span className="inline-block w-3 h-1 rounded-full bg-green-500" />
-              <span className="inline-block w-3 h-1 rounded-full bg-cyan-500 ml-0.5" />
               Outdoor
             </span>
           )}
