@@ -426,52 +426,11 @@ export default function DataTab() {
 
   return (
     <div className="space-y-4">
-      {/* ── Latest readings ─────────────────────────────────────────────────── */}
+      {/* ── Last reading info ───────────────────────────────────────────────── */}
       {(latestGh || latestOut) ? (
-        <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4 space-y-3">
-          {latestGh && (
-            <div>
-              <div className="text-xs text-gray-400 mb-1.5">
-                🏠 Gewächshaus · {fmtDateTime(latestGh.timestamp)}
-              </div>
-              <div className="flex gap-6 items-end">
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-2xl font-bold text-orange-500">{latestGh.temperature.toFixed(1)}</span>
-                  <span className="text-base text-orange-400">°C</span>
-                  <span className="text-sm text-gray-400 ml-1">🌡️</span>
-                </div>
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-2xl font-bold text-blue-500">{latestGh.humidity.toFixed(1)}</span>
-                  <span className="text-base text-blue-400">%</span>
-                  <span className="text-sm text-gray-400 ml-1">💧</span>
-                </div>
-              </div>
-            </div>
-          )}
-          {latestOut && (
-            <div>
-              <div className="text-xs text-gray-400 mb-1.5">
-                🌤️ Outdoor · {fmtDateTime(latestOut.timestamp)}
-              </div>
-              <div className="flex gap-6 items-end">
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-2xl font-bold text-green-500">{latestOut.temperature.toFixed(1)}</span>
-                  <span className="text-base text-green-400">°C</span>
-                  <span className="text-sm text-gray-400 ml-1">🌡️</span>
-                </div>
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-2xl font-bold text-cyan-500">{latestOut.humidity.toFixed(1)}</span>
-                  <span className="text-base text-cyan-400">%</span>
-                  <span className="text-sm text-gray-400 ml-1">💧</span>
-                </div>
-              </div>
-            </div>
-          )}
-          {stats && (
-            <div className="text-[11px] text-gray-400">
-              {stats.daysTracked} {stats.daysTracked === 1 ? "Tag" : "Tage"} erfasst · {stats.totalReadings} Messungen ({statsSource === "gh" ? "GH" : "Out"})
-            </div>
-          )}
+        <div className="text-[11px] text-gray-400 flex gap-4">
+          {latestGh && <span>🏠 GH: {fmtDateTime(latestGh.timestamp)}</span>}
+          {latestOut && <span>🌤️ Out: {fmtDateTime(latestOut.timestamp)}</span>}
         </div>
       ) : !loading ? (
         <div className="text-center py-12 text-gray-400">
