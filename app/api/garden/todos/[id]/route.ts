@@ -12,6 +12,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     where: { id: params.id },
     data: {
       done: body.done !== undefined ? body.done : undefined,
+      completedAt: body.done === true ? new Date() : body.done === false ? null : undefined,
       title: body.title?.trim(),
       dueDate: body.dueDate !== undefined ? (body.dueDate ? new Date(body.dueDate) : null) : undefined,
     },

@@ -125,9 +125,10 @@ model GardenTodo {
   season    GardenSeason? @relation(fields: [seasonId], references: [id], onDelete: Cascade)
   title     String
   dueDate   DateTime?
-  done      Boolean       @default(false)
-  type      String?
-  createdAt DateTime      @default(now())
+  done        Boolean       @default(false)
+  completedAt DateTime?
+  type        String?
+  createdAt   DateTime      @default(now())
 }
 
 model GardenDiary {
