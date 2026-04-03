@@ -172,13 +172,52 @@ function DualLineChart({ series, unit, range, height = 180 }: { series: Series[]
             {fmtX(d.ts)}
           </text>
         ))}
-        {/* data lines */}
+        {/* 0°C reference line */}
+        {unit === "°C" && lo - padV < 0 && 0 < hi + padV && (
+          <>
+            <line
+              x1={PAD.left} y1={toY(0)} x2={PAD.left + iW} y2={toY(0)}
+              stroke="#93c5fd" strokeWidth={1} strokeDasharray="6,4"
+            />
+            <text x={PAD.left - 5} y={toY(0) + 4} fontSize={9} textAnchor="end" fill="#93c5fd">0°C</text>
+          </>
+        )}
+        {/* data lines — solid above 0, dashed below 0 (temp only) */}
         {active.map(s => {
-          const pts = s.data.map(d => `${toX(d.ts).toFixed(1)},${toY(d.val).toFixed(1)}`).join(" ")
-          return (
-            <polyline key={s.label} fill="none" stroke={s.color} strokeWidth={2}
-              strokeLinejoin="round" strokeLinecap="round" points={pts} />
-          )
+          if (unit !== "°C") {
+            const pts = s.data.map(d => `${toX(d.ts).toFixed(1)},${toY(d.val).toFixed(1)}`).join(" ")
+            return <polyline key={s.label} fill="none" stroke={s.color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" points={pts} />
+          }
+          // build segments split at val=0
+          type Seg = { pts: string[]; dashed: boolean }
+          const segments: Seg[] = []
+          let cur: Seg | null = null
+          const addPt = (x: number, y: number, dashed: boolean) => {
+            if (!cur || cur.dashed !== dashed) {
+              const prev = cur
+              cur = { pts: [], dashed }
+              if (prev && prev.pts.length) { cur.pts.push(prev.pts[prev.pts.length - 1]); segments.push(prev) }
+              segments.push(cur)
+            }
+            cur.pts.push(`${x.toFixed(1)},${y.toFixed(1)}`)
+          }
+          for (let i = 0; i < s.data.length; i++) {
+            const p = s.data[i]
+            if (i === 0) { addPt(toX(p.ts), toY(p.val), p.val < 0); continue }
+            const prev = s.data[i - 1]
+            if ((prev.val < 0) !== (p.val < 0)) {
+              const t = (0 - prev.val) / (p.val - prev.val)
+              const crossTs = prev.ts + (p.ts - prev.ts) * t
+              addPt(toX(crossTs), toY(0), prev.val < 0)
+            }
+            addPt(toX(p.ts), toY(p.val), p.val < 0)
+          }
+          return segments.map((seg, i) => (
+            <polyline key={`${s.label}-${i}`} fill="none" stroke={s.color} strokeWidth={2}
+              strokeLinejoin="round" strokeLinecap="round"
+              strokeDasharray={seg.dashed ? "6,4" : undefined}
+              points={seg.pts.join(" ")} />
+          ))
         })}
         {/* hover crosshair */}
         {hover && (
