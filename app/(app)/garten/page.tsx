@@ -8,8 +8,9 @@ import TodosTab from "@/components/garten/TodosTab"
 import BedsTab from "@/components/garten/BedsTab"
 import NotesTab from "@/components/garten/NotesTab"
 import DataTab from "@/components/garten/DataTab"
+import HarvestTab from "@/components/garten/HarvestTab"
 
-type Tab = "pflanzen" | "kalender" | "todos" | "beete" | "notizen" | "daten"
+type Tab = "pflanzen" | "kalender" | "todos" | "beete" | "notizen" | "daten" | "ernte"
 
 const TABS: { id: Tab; label: string; emoji: string }[] = [
   { id: "pflanzen", label: "Pflanzen", emoji: "🌱" },
@@ -18,6 +19,7 @@ const TABS: { id: Tab; label: string; emoji: string }[] = [
   { id: "beete", label: "Beete", emoji: "🪴" },
   { id: "notizen", label: "Notizen", emoji: "📝" },
   { id: "daten", label: "Daten", emoji: "🌡️" },
+  { id: "ernte", label: "Ernte", emoji: "🧺" },
 ]
 
 export default function GartenPage() {
@@ -49,6 +51,7 @@ export default function GartenPage() {
       {tab === "beete" && <BedsTab />}
       {tab === "notizen" && <NotesTab />}
       {tab === "daten" && <DataTab />}
+      {tab === "ernte" && <HarvestTab />}
     </div>
   )
 }

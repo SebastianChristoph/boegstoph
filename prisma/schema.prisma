@@ -148,6 +148,17 @@ model GardenNote {
   updatedAt DateTime @updatedAt
 }
 
+model GardenHarvest {
+  id          String   @id @default(cuid())
+  year        Int
+  plantName   String
+  quantity    Float
+  unit        String   // "Stück" | "Handvoll" | "g" | "kg"
+  harvestDate DateTime @default(now())
+  notes       String?
+  createdAt   DateTime @default(now())
+}
+
 model PushSubscription {
   id           String   @id @default(cuid())
   endpoint     String   @unique
