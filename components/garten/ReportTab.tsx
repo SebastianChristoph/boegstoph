@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 
 const CURRENT_YEAR = new Date().getFullYear()
-const YEARS = Array.from({ length: 4 }, (_, i) => CURRENT_YEAR - i)
+const YEARS = [CURRENT_YEAR]
 
 const METHOD_LABEL: Record<string, string> = { INDOOR: "Vorzucht", DIRECT: "Direktaussaat", BUY: "Jungpflanze" }
 const TODO_TYPE_LABEL: Record<string, string> = {
