@@ -212,8 +212,10 @@ function DualLineChart({ series, unit, range, height = 180 }: { series: Series[]
             }
             addPt(toX(p.ts), toY(p.val), p.val < 0)
           }
+          const belowColor = s.label === "GH" ? "#ef4444" : "#3b82f6"
           return segments.map((seg, i) => (
-            <polyline key={`${s.label}-${i}`} fill="none" stroke={s.color} strokeWidth={2}
+            <polyline key={`${s.label}-${i}`} fill="none"
+              stroke={seg.dashed ? belowColor : s.color} strokeWidth={2}
               strokeLinejoin="round" strokeLinecap="round"
               strokeDasharray={seg.dashed ? "6,4" : undefined}
               points={seg.pts.join(" ")} />
