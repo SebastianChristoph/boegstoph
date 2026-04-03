@@ -15,6 +15,6 @@ export async function POST(req: NextRequest) {
   if (!session) return new NextResponse("Unauthorized", { status: 401 })
   const { title, body } = await req.json()
   if (!title?.trim()) return new NextResponse("title required", { status: 400 })
-  const note = await prisma.gardenNote.create({ data: { title: title.trim(), body: body?.trim() ?? "" } })
+  const note = await prisma.gardenNote.create({ data: { title: title.trim(), body: body?.trim() ?? "", year: new Date().getFullYear() } })
   return NextResponse.json(note, { status: 201 })
 }
