@@ -55,7 +55,7 @@ export default function HarvestTab() {
     fetch(`/api/garden/seasons?year=${CURRENT_YEAR}`)
       .then(r => r.ok ? r.json() : [])
       .then((seasons: SeasonPlant[]) => {
-        const names = [...new Set(seasons.map((s: SeasonPlant) => s.plant.name))].sort()
+        const names = Array.from(new Set(seasons.map((s: SeasonPlant) => s.plant.name))).sort()
         setSeasonPlants(names)
       })
   }, [load])
