@@ -77,14 +77,14 @@ interface HoverState {
   items: { label: string; color: string; val: number; ts: number }[]
 }
 
-function DualLineChart({ series, unit, range }: { series: Series[]; unit: string; range: Range }) {
+function DualLineChart({ series, unit, range, height = 180 }: { series: Series[]; unit: string; range: Range; height?: number }) {
   const svgRef = useRef<SVGSVGElement>(null)
   const [hover, setHover] = useState<HoverState | null>(null)
 
   const active = series.filter(s => s.data.length >= 2)
   if (!active.length) return null
 
-  const W = 800, H = 180
+  const W = 800, H = height
   const PAD = { top: 14, right: 14, bottom: 26, left: 46 }
   const iW = W - PAD.left - PAD.right
   const iH = H - PAD.top - PAD.bottom
@@ -313,6 +313,7 @@ export default function DataTab() {
   const [importing, setImporting] = useState(false)
   const [importStatus, setImportStatus] = useState<string | null>(null)
   const [uploadSource, setUploadSource] = useState<Source>("gh")
+  const [expandedChart, setExpandedChart] = useState<{ title: string; series: Series[]; unit: string; ghVals: number[]; outVals: number[] } | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const loadStats = useCallback(async (src: Source) => {
@@ -472,7 +473,22 @@ export default function DataTab() {
       {/* ── Dual Line charts ───────────────────────────────────────────────── */}
       {hasAnyReadings && (
         <>
-          <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4">
+          <div
+            className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4 hidden md:block cursor-pointer hover:border-primary-300 transition-colors group"
+            onClick={() => setExpandedChart({ title: "🌡️ Temperatur", series: tempSeries, unit: "°C", ghVals: ghReadings.map(r => r.temperature), outVals: outReadings.map(r => r.temperature) })}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <div className="text-sm font-medium text-gray-700">🌡️ Temperatur</div>
+              <span className="text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">Vergrößern ↗</span>
+            </div>
+            <StatsRow
+              ghVals={ghReadings.map(r => r.temperature)}
+              outVals={outReadings.map(r => r.temperature)}
+              unit="°C"
+            />
+            <DualLineChart series={tempSeries} unit="°C" range={range} />
+          </div>
+          <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4 md:hidden">
             <div className="text-sm font-medium text-gray-700 mb-1">🌡️ Temperatur</div>
             <StatsRow
               ghVals={ghReadings.map(r => r.temperature)}
@@ -481,7 +497,22 @@ export default function DataTab() {
             />
             <DualLineChart series={tempSeries} unit="°C" range={range} />
           </div>
-          <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4">
+          <div
+            className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4 hidden md:block cursor-pointer hover:border-primary-300 transition-colors group"
+            onClick={() => setExpandedChart({ title: "💧 Luftfeuchtigkeit", series: humSeries, unit: "%", ghVals: ghReadings.map(r => r.humidity), outVals: outReadings.map(r => r.humidity) })}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <div className="text-sm font-medium text-gray-700">💧 Luftfeuchtigkeit</div>
+              <span className="text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">Vergrößern ↗</span>
+            </div>
+            <StatsRow
+              ghVals={ghReadings.map(r => r.humidity)}
+              outVals={outReadings.map(r => r.humidity)}
+              unit="%"
+          />
+            <DualLineChart series={humSeries} unit="%" range={range} />
+          </div>
+          <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4 md:hidden">
             <div className="text-sm font-medium text-gray-700 mb-1">💧 Luftfeuchtigkeit</div>
             <StatsRow
               ghVals={ghReadings.map(r => r.humidity)}
@@ -685,6 +716,40 @@ export default function DataTab() {
           </p>
         )}
       </div>
+
+      {/* ── Chart Modal (desktop only) ─────────────────────────────────────── */}
+      {expandedChart && (
+        <div
+          className="fixed inset-0 z-50 hidden md:flex items-center justify-center bg-black/50"
+          onClick={() => setExpandedChart(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl p-6 w-[90vw] max-w-5xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-4">
+                <span className="text-base font-semibold text-gray-800">{expandedChart.title}</span>
+                <div className="flex gap-3 text-xs text-gray-500">
+                  <span className="flex items-center gap-1.5">
+                    <span className="inline-block w-3 h-1 rounded-full bg-orange-500" />
+                    Gewächshaus
+                  </span>
+                  {expandedChart.outVals.length > 0 && (
+                    <span className="flex items-center gap-1.5">
+                      <span className="inline-block w-3 h-1 rounded-full bg-green-500" />
+                      Outdoor
+                    </span>
+                  )}
+                </div>
+              </div>
+              <button onClick={() => setExpandedChart(null)} className="text-gray-400 hover:text-gray-700 text-xl font-light leading-none">✕</button>
+            </div>
+            <StatsRow ghVals={expandedChart.ghVals} outVals={expandedChart.outVals} unit={expandedChart.unit} />
+            <DualLineChart series={expandedChart.series} unit={expandedChart.unit} range={range} height={420} />
+          </div>
+        </div>
+      )}
     </div>
   )
 }
