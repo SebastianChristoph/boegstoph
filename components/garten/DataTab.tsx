@@ -91,14 +91,23 @@ function DualLineChart({ series, unit, range, height = 180 }: { series: Series[]
 
   const allVals = active.flatMap(s => s.data.map(d => d.val))
   const lo = Math.min(...allVals), hi = Math.max(...allVals)
-  const valSpan = hi - lo || 1, padV = valSpan * 0.12
+
+  const step = unit === "°C" ? 5 : unit === "%" ? 10 : 5
+  const yMin = Math.floor(lo / step) * step
+  const yMax = Math.ceil(hi / step) * step
+  const yTicks = Array.from({ length: Math.round((yMax - yMin) / step) + 1 }, (_, i) => yMin + i * step)
+
+  // for non-fixed-tick charts keep padV for toY range
+  const padV = unit === "°C" || unit === "%" ? 0 : (hi - lo || 1) * 0.12
+  const yLo = unit === "°C" || unit === "%" ? yMin : lo - padV
+  const yHi = unit === "°C" || unit === "%" ? yMax : hi + padV
 
   const allTs = active.flatMap(s => s.data.map(d => d.ts))
   const minTs = Math.min(...allTs), maxTs = Math.max(...allTs)
   const tsSpan = maxTs - minTs || 1
 
   const toX = (ts: number) => PAD.left + ((ts - minTs) / tsSpan) * iW
-  const toY = (val: number) => PAD.top + iH - ((val - (lo - padV)) / (valSpan + 2 * padV)) * iH
+  const toY = (val: number) => PAD.top + iH - ((val - yLo) / ((yHi - yLo) || 1)) * iH
 
   function handleMouseMove(e: React.MouseEvent<SVGSVGElement>) {
     const svg = svgRef.current
@@ -151,20 +160,17 @@ function DualLineChart({ series, unit, range, height = 180 }: { series: Series[]
         {/* grid */}
         <line x1={PAD.left} y1={PAD.top} x2={PAD.left} y2={PAD.top + iH} stroke="#e5e7eb" strokeWidth={1} />
         <line x1={PAD.left} y1={PAD.top + iH} x2={PAD.left + iW} y2={PAD.top + iH} stroke="#e5e7eb" strokeWidth={1} />
-        {[0.25, 0.5, 0.75].map(f => (
-          <line key={f} x1={PAD.left} y1={PAD.top + iH * f} x2={PAD.left + iW} y2={PAD.top + iH * f}
+        {yTicks.filter(v => v !== yMin && v !== yMax).map(v => (
+          <line key={v} x1={PAD.left} y1={toY(v)} x2={PAD.left + iW} y2={toY(v)}
             stroke="#f3f4f6" strokeWidth={1} strokeDasharray="4,4" />
         ))}
         {/* y-axis labels */}
-        {[0, 0.25, 0.5, 0.75, 1].map(f => {
-          const val = lo - padV + (valSpan + 2 * padV) * (1 - f)
-          return (
-            <text key={f} x={PAD.left - 5} y={PAD.top + iH * f + 4}
-              fontSize={10} textAnchor="end" fill="#9ca3af">
-              {val.toFixed(1)}{unit}
-            </text>
-          )
-        })}
+        {yTicks.map(v => (
+          <text key={v} x={PAD.left - 5} y={toY(v) + 4}
+            fontSize={10} textAnchor="end" fill="#9ca3af">
+            {v}{unit}
+          </text>
+        ))}
         {/* x-axis labels */}
         {xLabels.map((d, i) => (
           <text key={i} x={toX(d.ts)} y={H - 5} fontSize={9}
@@ -172,15 +178,12 @@ function DualLineChart({ series, unit, range, height = 180 }: { series: Series[]
             {fmtX(d.ts)}
           </text>
         ))}
-        {/* 0°C reference line */}
-        {unit === "°C" && lo - padV < 0 && 0 < hi + padV && (
-          <>
-            <line
-              x1={PAD.left} y1={toY(0)} x2={PAD.left + iW} y2={toY(0)}
-              stroke="#93c5fd" strokeWidth={1} strokeDasharray="6,4"
-            />
-            <text x={PAD.left - 5} y={toY(0) + 4} fontSize={9} textAnchor="end" fill="#93c5fd">0°C</text>
-          </>
+        {/* 0°C reference line — highlight the 0 gridline in blue when it's in range */}
+        {unit === "°C" && yMin < 0 && yMax > 0 && (
+          <line
+            x1={PAD.left} y1={toY(0)} x2={PAD.left + iW} y2={toY(0)}
+            stroke="#93c5fd" strokeWidth={1.5} strokeDasharray="6,4"
+          />
         )}
         {/* data lines — solid above 0, dashed below 0 (temp only) */}
         {active.map(s => {
