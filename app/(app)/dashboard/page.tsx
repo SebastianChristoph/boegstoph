@@ -3,7 +3,6 @@ import CalendarWidget from "@/components/CalendarWidget"
 import DashboardStats from "@/components/DashboardStats"
 import Connect4Widget from "@/components/Connect4Widget"
 import KniffelWidget from "@/components/KniffelWidget"
-import SauerteigWidget from "@/components/SauerteigWidget"
 
 export default function DashboardPage() {
   const today = new Date()
@@ -37,7 +36,6 @@ export default function DashboardPage() {
       </div>
 
       <div className="space-y-4 mb-8">
-        <SauerteigWidget />
         <Connect4Widget />
         <KniffelWidget />
         <Link href="/home"
