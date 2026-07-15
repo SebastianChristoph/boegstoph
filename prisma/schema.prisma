@@ -207,3 +207,19 @@ model GardenThermometerReading {
   @@unique([timestamp, source])
 }
 
+model GlotzenTitle {
+  id              String    @id @default(cuid())
+  imdbId          String?   @unique
+  title           String
+  year            String?
+  type            String    // "movie" | "series"
+  posterUrl       String?
+  plot            String?
+  imdbRating      Float?
+  status          String    @default("wishlist") // "wishlist" | "watched"
+  watchedAt       DateTime?
+  ratingTina      Int?      // 1-10
+  ratingSebastian Int?      // 1-10
+  createdAt       DateTime  @default(now())
+}
+

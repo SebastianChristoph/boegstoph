@@ -8,6 +8,7 @@ const links = [
   { href: "/tasks", label: "Aufgaben", icon: "✅" },
   { href: "/garten", label: "Garten", icon: "🌱" },
   { href: "/ideen", label: "Ideen", icon: "💡" },
+  { href: "/glotzen", label: "Glotzen", icon: "🎬" },
   { href: "/einstellungen", label: "Einstellungen", icon: "⚙️" },
 ]
 export default function Sidebar() {
