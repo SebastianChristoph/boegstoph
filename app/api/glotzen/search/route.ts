@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { searchOmdbTitles } from "@/lib/omdb"
+import { searchTmdbTitles } from "@/lib/tmdb"
 
 export const dynamic = "force-dynamic"
 
@@ -9,9 +9,9 @@ export async function GET(req: NextRequest) {
   if (!q) return NextResponse.json([])
 
   try {
-    const results = await searchOmdbTitles(q)
+    const results = await searchTmdbTitles(q)
     return NextResponse.json(results)
   } catch (err: any) {
-    return NextResponse.json({ error: err.message ?? "OMDb Fehler" }, { status: 502 })
+    return NextResponse.json({ error: err.message ?? "Suche fehlgeschlagen" }, { status: 502 })
   }
 }

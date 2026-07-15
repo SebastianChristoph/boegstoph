@@ -21,14 +21,16 @@ interface GlotzenTitle {
 }
 
 interface SearchResult {
+  tmdbId: number
   title: string
-  year: string
-  imdbId: string
+  originalTitle: string | null
+  year: string | null
   type: string
   poster: string | null
 }
 
 interface Detail extends SearchResult {
+  imdbId: string | null
   plot: string | null
   imdbRating: number | null
   genre: string | null
@@ -85,11 +87,11 @@ function MerklisteTab({ onWatched }: { onWatched: () => void }) {
     }
   }
 
-  async function pick(imdbId: string) {
+  async function pick(tmdbId: number, type: string) {
     setDetailLoading(true)
     setDetail(null)
     try {
-      const res = await fetch(`/api/glotzen/detail?imdbId=${encodeURIComponent(imdbId)}`)
+      const res = await fetch(`/api/glotzen/detail?tmdbId=${tmdbId}&type=${type}`)
       if (res.ok) setDetail(await res.json())
     } finally {
       setDetailLoading(false)
@@ -166,14 +168,16 @@ function MerklisteTab({ onWatched }: { onWatched: () => void }) {
         <ul className="space-y-2">
           {results.map((r) => (
             <li
-              key={r.imdbId}
-              onClick={() => pick(r.imdbId)}
+              key={r.tmdbId}
+              onClick={() => pick(r.tmdbId, r.type)}
               className="flex items-center gap-3 bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-sm cursor-pointer hover:bg-gray-50"
             >
               <Poster url={r.poster} size="w-10 h-14" />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-800 truncate">{r.title}</p>
-                <p className="text-xs text-gray-400">{r.year}</p>
+                <p className="text-xs text-gray-400 truncate">
+                  {r.year}{r.originalTitle && r.originalTitle !== r.title ? ` · ${r.originalTitle}` : ""}
+                </p>
               </div>
               <TypeBadge type={r.type} />
             </li>
@@ -192,7 +196,11 @@ function MerklisteTab({ onWatched }: { onWatched: () => void }) {
                 <h3 className="font-semibold text-gray-900">{detail.title}</h3>
                 <TypeBadge type={detail.type} />
               </div>
-              <p className="text-xs text-gray-400 mb-1">{detail.year}{detail.genre ? ` · ${detail.genre}` : ""}</p>
+              <p className="text-xs text-gray-400 mb-1">
+                {detail.year}
+                {detail.originalTitle && detail.originalTitle !== detail.title ? ` · ${detail.originalTitle}` : ""}
+                {detail.genre ? ` · ${detail.genre}` : ""}
+              </p>
               <p className="text-sm font-medium text-amber-600">
                 {detail.imdbRating !== null ? `⭐ ${detail.imdbRating.toFixed(1)} / 10 (IMDb)` : "Keine IMDb-Bewertung verfügbar"}
               </p>
