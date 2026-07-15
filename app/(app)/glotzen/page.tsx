@@ -44,9 +44,23 @@ function TypeBadge({ type }: { type: string }) {
   )
 }
 
-function Poster({ url, size = "w-12 h-16" }: { url: string | null; size?: string }) {
-  if (url) return <img src={url} alt="" className={`${size} object-cover rounded-lg bg-gray-100 shrink-0`} />
-  return <div className={`${size} rounded-lg bg-gray-100 flex items-center justify-center text-xl shrink-0`}>🎬</div>
+function Poster({ url, imdbId, size = "w-12 h-16" }: { url: string | null; imdbId?: string | null; size?: string }) {
+  const img = url
+    ? <img src={url} alt="" className={`${size} object-cover rounded-lg bg-gray-100 shrink-0`} />
+    : <div className={`${size} rounded-lg bg-gray-100 flex items-center justify-center text-xl shrink-0`}>🎬</div>
+
+  if (!imdbId) return img
+  return (
+    <a
+      href={`https://www.imdb.com/title/${imdbId}/`}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => e.stopPropagation()}
+      title="Auf IMDb ansehen"
+    >
+      {img}
+    </a>
+  )
 }
 
 // ── Merkliste ────────────────────────────────────────────────────────────────
@@ -190,7 +204,7 @@ function MerklisteTab({ onWatched }: { onWatched: () => void }) {
       {detail && (
         <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4">
           <div className="flex gap-3">
-            <Poster url={detail.poster} size="w-16 h-24" />
+            <Poster url={detail.poster} imdbId={detail.imdbId} size="w-16 h-24" />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="font-semibold text-gray-900">{detail.title}</h3>
@@ -236,7 +250,7 @@ function MerklisteTab({ onWatched }: { onWatched: () => void }) {
           <ul className="space-y-2">
             {wishlist.map((w) => (
               <li key={w.id} className="flex items-center gap-3 bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-sm">
-                <Poster url={w.posterUrl} size="w-10 h-14" />
+                <Poster url={w.posterUrl} imdbId={w.imdbId} size="w-10 h-14" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-800 truncate">{w.title}</p>
                   <p className="text-xs text-gray-400">
@@ -325,7 +339,7 @@ function RankingTab({ reloadKey }: { reloadKey: number }) {
               <li key={w.id} className="bg-white border border-gray-200 rounded-xl px-3 py-2.5 shadow-sm">
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-semibold text-gray-400 w-5 shrink-0">{i + 1}.</span>
-                  <Poster url={w.posterUrl} size="w-10 h-14" />
+                  <Poster url={w.posterUrl} imdbId={w.imdbId} size="w-10 h-14" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sm font-medium text-gray-800 truncate">{w.title}</p>
