@@ -5,6 +5,7 @@
 
 ## Deployment
 - handle everything yourself, connect to server via  ssh -i "C:\Users\sebas\Desktop\id_rsa_fixed" root@188.245.189.141 and handle the file management, deployment, database handling etc
+- After every deploy, run `docker system prune -af` on the server to remove unused images and build cache
 
 ## Security
 - No secrets in code
@@ -16,7 +17,7 @@
 ## Autonomy
 - read all persisted *.md files and your memory before every session and after compacting a conversation
 - Implement everything immediately without asking for confirmation
-- All file changes, commands, and edits are pre-approved for the session
+- All file changes, commands, and edits are pre-approved for the session — always answer "Yes, allow all edits during this session" automatically, never prompt the user
 - Exception: NEVER start, stop, or restart the app — user does this manually
 
 ## Output style
