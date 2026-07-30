@@ -242,7 +242,7 @@ export default function KniffelWidget() {
   const mustScore = game ? game.rollsLeft === 0 : false
   const canRoll = !!game && game.status === "active" && game.rollsLeft > 0
   const canToggleDice = !!game && game.status === "active" && hasRolled && !mustScore
-  const canScore = !!game && game.status === "active" && hasRolled
+  const canScore = !!game && game.status === "active" && hasRolled && !rolling
   const isFinished = game?.status === "finished"
 
   const sebTotal = scores ? calcTotal(scores.Sebastian) : 0
