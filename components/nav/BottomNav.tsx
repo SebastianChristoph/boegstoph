@@ -6,7 +6,6 @@ const links = [
   { href: "/shopping", label: "Einkauf", icon: "🛒" },
   { href: "/tasks", label: "Aufgaben", icon: "✅" },
   { href: "/daten", label: "Daten", icon: "🌡️" },
-  { href: "/ideen", label: "Ideen", icon: "💡" },
   { href: "/glotzen", label: "Glotzen", icon: "🎬" },
   { href: "/einstellungen", label: "Einstellungen", icon: "⚙️" },
 ]

@@ -53,19 +53,6 @@ model Photo {
   createdAt    DateTime @default(now())
 }
 
-model FoodIdea {
-  id        String   @id @default(cuid())
-  text      String
-  createdAt DateTime @default(now())
-}
-
-model BirthdayWish {
-  id        String   @id @default(cuid())
-  person    String
-  wish      String
-  createdAt DateTime @default(now())
-}
-
 model PushSubscription {
   id           String   @id @default(cuid())
   endpoint     String   @unique
