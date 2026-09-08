@@ -34,6 +34,7 @@ export async function fetchAllThermometerCSVs(): Promise<ThermometerMailResult[]
   await client.connect()
 
   const results: ThermometerMailResult[] = []
+  const processedUids: number[] = []
 
   try {
     await client.mailboxOpen("INBOX")
@@ -54,13 +55,17 @@ export async function fetchAllThermometerCSVs(): Promise<ThermometerMailResult[]
             const source = detectSource(att.filename)
             // Nur hinzufügen wenn wir für diese Source noch keinen Treffer haben
             if (!results.find(r => r.source === source)) {
-              await client.messageFlagsAdd([uids[i]], ["\\Seen"], { uid: true })
               results.push({ csv: att.content.toString("utf-8"), source })
+              processedUids.push(uids[i])
             }
           }
         }
       }
       if (results.length === 2) break // beide Thermometer gefunden
+    }
+
+    if (processedUids.length) {
+      await client.messageDelete(processedUids, { uid: true })
     }
 
     return results
