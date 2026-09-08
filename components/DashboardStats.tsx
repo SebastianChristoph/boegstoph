@@ -7,22 +7,19 @@ interface Stats {
   uncheckedItems: number
   openTasks: number
   overdueTasks: number
-  gardenTodos: number
 }
 
 export default function DashboardStats() {
   const [stats, setStats] = useState<Stats | null>(null)
 
   async function load() {
-    const [listsRes, tasksRes, gardenRes] = await Promise.all([
+    const [listsRes, tasksRes] = await Promise.all([
       fetch("/api/shopping"),
       fetch("/api/tasks"),
-      fetch("/api/garden/todos/count-month"),
     ])
-    const [lists, tasks, garden] = await Promise.all([
+    const [lists, tasks] = await Promise.all([
       listsRes.ok ? listsRes.json() : [],
       tasksRes.ok ? tasksRes.json() : [],
-      gardenRes.ok ? gardenRes.json() : { count: 0 },
     ])
     const uncheckedItems = (lists as { items: { checked: boolean }[] }[])
       .reduce((s: number, l) => s + l.items.filter(i => !i.checked).length, 0)
@@ -31,7 +28,6 @@ export default function DashboardStats() {
       uncheckedItems,
       openTasks: openTasks.length,
       overdueTasks: openTasks.filter(t => t.dueDate && new Date(t.dueDate) < new Date()).length,
-      gardenTodos: garden.count ?? 0,
     })
   }
 
@@ -42,7 +38,7 @@ export default function DashboardStats() {
     es.onopen = () => load()
     es.onmessage = (e) => {
       const { type } = JSON.parse(e.data)
-      if (type === "shopping" || type === "tasks" || type === "garden-todos") load()
+      if (type === "shopping" || type === "tasks") load()
     }
     return () => es.close()
   }, [])
@@ -69,11 +65,6 @@ export default function DashboardStats() {
           Offene Aufgaben
           {(s?.overdueTasks ?? 0) > 0 && <span className="ml-1 text-red-500">({s!.overdueTasks} überfällig)</span>}
         </div>
-      </Link>
-      <Link href="/garten?tab=todos" className="bg-white rounded-2xl p-4 border border-gray-200 shadow-sm active:scale-95 transition-transform">
-        <div className="text-3xl mb-2">🌱</div>
-        <div className="text-2xl font-bold text-gray-900">{s?.gardenTodos ?? "…"}</div>
-        <div className="text-sm text-gray-500 mt-0.5">Todos diesen Monat</div>
       </Link>
     </>
   )

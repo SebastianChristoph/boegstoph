@@ -6,7 +6,7 @@ const links = [
   { href: "/dashboard", label: "Start", icon: "🏠" },
   { href: "/shopping", label: "Einkaufslisten", icon: "🛒" },
   { href: "/tasks", label: "Aufgaben", icon: "✅" },
-  { href: "/garten", label: "Garten", icon: "🌱" },
+  { href: "/daten", label: "Daten", icon: "🌡️" },
   { href: "/ideen", label: "Ideen", icon: "💡" },
   { href: "/glotzen", label: "Glotzen", icon: "🎬" },
   { href: "/einstellungen", label: "Einstellungen", icon: "⚙️" },

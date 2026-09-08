@@ -36,3 +36,6 @@ garten.md
 # prisma
 prisma/dev.db
 prisma/dev.db-journal
+
+# local data dumps / exports
+backups/

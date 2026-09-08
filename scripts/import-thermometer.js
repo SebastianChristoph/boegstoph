@@ -96,9 +96,10 @@ async function main() {
       found[source] = { csv, uid }
     }
 
-    // Alle gefundenen als gelesen markieren
-    for (const { uid } of Object.values(found)) {
-      await client.messageFlagsAdd([uid], ["\\Seen"], { uid: true })
+    // Alle gefundenen Mails loeschen (verarbeitet in der Import-Schleife unten)
+    const uidsToDelete = Object.values(found).map(f => f.uid)
+    if (uidsToDelete.length) {
+      await client.messageDelete(uidsToDelete, { uid: true })
     }
   } finally {
     await client.logout()
