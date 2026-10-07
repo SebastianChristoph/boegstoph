@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { OUTDOOR_SEASON_END } from "@/lib/thermometerParser"
 
 export const dynamic = "force-dynamic"
 
@@ -9,8 +10,10 @@ function avg(arr: number[]) {
 
 export async function GET(req: NextRequest) {
   const source = new URL(req.url).searchParams.get("source") === "out" ? "out" : "gh"
+  // "out" source became the bedroom sensor after OUTDOOR_SEASON_END — keep
+  // Rekorde/Saison-Kennzahlen scoped to the actual Outdoor season.
   const all = await prisma.gardenThermometerReading.findMany({
-    where: { source },
+    where: source === "out" ? { source, timestamp: { lte: OUTDOOR_SEASON_END } } : { source },
     orderBy: { timestamp: "asc" },
   })
 

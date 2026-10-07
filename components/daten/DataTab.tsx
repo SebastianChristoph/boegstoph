@@ -313,10 +313,8 @@ function HourlyChart({ profile, color, unit }: {
 
 // ── Stats Row ──────────────────────────────────────────────────────────────────
 
-function StatsRow({ ghVals, outVals, unit, ghColor = "text-orange-500", outColor = "text-green-500" }: { ghVals: number[]; outVals: number[]; unit: string; ghColor?: string; outColor?: string }) {
-  const rows: { label: string; vals: number[]; color: string }[] = []
-  if (ghVals.length) rows.push({ label: "GH", vals: ghVals, color: ghColor })
-  if (outVals.length) rows.push({ label: "Out", vals: outVals, color: outColor })
+function StatsRow({ series, unit }: { series: { label: string; vals: number[]; color: string }[]; unit: string }) {
+  const rows = series.filter(s => s.vals.length)
   if (!rows.length) return null
   return (
     <div className="space-y-0.5 mb-2">
@@ -349,6 +347,7 @@ function Delta({ current, previous, unit }: { current: number | null; previous: 
 
 export default function DataTab() {
   const [readings, setReadings] = useState<Reading[]>([])
+  const [bedroomReadings, setBedroomReadings] = useState<Reading[]>([])
   const [stats, setStats] = useState<ThermometerStats | null>(null)
   const [statsSource, setStatsSource] = useState<Source>("gh")
   const [range, setRange] = useState<Range>("7d")
@@ -369,12 +368,14 @@ export default function DataTab() {
 
   const load = useCallback(async (r: Range) => {
     setLoading(true)
-    const [readRes, statsRes] = await Promise.all([
+    const [readRes, statsRes, bedroomRes] = await Promise.all([
       fetch(`/api/garden/thermometer?range=${r}`),
       fetch(`/api/garden/thermometer/stats?source=${statsSource}`),
+      fetch(`/api/garden/thermometer?view=bedroom`),
     ])
     if (readRes.ok) setReadings(await readRes.json())
     if (statsRes.ok) setStats(await statsRes.json())
+    if (bedroomRes.ok) setBedroomReadings(await bedroomRes.json())
     setLoading(false)
   }, [statsSource])
 
@@ -417,6 +418,7 @@ export default function DataTab() {
 
   const latestGh = ghReadings.length > 0 ? ghReadings[ghReadings.length - 1] : null
   const latestOut = outReadings.length > 0 ? outReadings[outReadings.length - 1] : null
+  const latestBedroom = bedroomReadings.length > 0 ? bedroomReadings[bedroomReadings.length - 1] : null
 
   const tempSeries: Series[] = [
     { data: ghReadings.map(r => ({ ts: new Date(r.timestamp).getTime(), val: r.temperature })), color: SOURCE_COLORS.gh.temp, label: "GH" },
@@ -427,15 +429,24 @@ export default function DataTab() {
     { data: outReadings.map(r => ({ ts: new Date(r.timestamp).getTime(), val: r.humidity })), color: SOURCE_COLORS.out.hum, label: "Out" },
   ]
 
+  const BEDROOM_COLOR = "#a855f7"
+  const bedroomTempSeries: Series[] = [
+    { data: bedroomReadings.map(r => ({ ts: new Date(r.timestamp).getTime(), val: r.temperature })), color: BEDROOM_COLOR, label: "SZ" },
+  ]
+  const bedroomHumSeries: Series[] = [
+    { data: bedroomReadings.map(r => ({ ts: new Date(r.timestamp).getTime(), val: r.humidity })), color: BEDROOM_COLOR, label: "SZ" },
+  ]
+
   const hasAnyReadings = readings.length > 0
 
   return (
     <div className="space-y-4">
       {/* ── Last reading info ───────────────────────────────────────────────── */}
-      {(latestGh || latestOut) ? (
+      {(latestGh || latestOut || latestBedroom) ? (
         <div className="text-[11px] text-gray-400 flex gap-4">
           {latestGh && <span>🏠 GH: {fmtDateTime(latestGh.timestamp)}</span>}
           {latestOut && <span>🌤️ Out: {fmtDateTime(latestOut.timestamp)}</span>}
+          {latestBedroom && <span>🛏️ SZ: {fmtDateTime(latestBedroom.timestamp)}</span>}
         </div>
       ) : !loading ? (
         <div className="text-center py-12 text-gray-400">
@@ -485,8 +496,10 @@ export default function DataTab() {
               <span className="text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">Vergrößern ↗</span>
             </div>
             <StatsRow
-              ghVals={ghReadings.map(r => r.temperature)}
-              outVals={outReadings.map(r => r.temperature)}
+              series={[
+                { label: "GH", vals: ghReadings.map(r => r.temperature), color: "text-orange-500" },
+                { label: "Out", vals: outReadings.map(r => r.temperature), color: "text-green-500" },
+              ]}
               unit="°C"
             />
             <DualLineChart series={tempSeries} unit="°C" range={range} />
@@ -494,8 +507,10 @@ export default function DataTab() {
           <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4 md:hidden">
             <div className="text-sm font-medium text-gray-700 mb-1">🌡️ Temperatur</div>
             <StatsRow
-              ghVals={ghReadings.map(r => r.temperature)}
-              outVals={outReadings.map(r => r.temperature)}
+              series={[
+                { label: "GH", vals: ghReadings.map(r => r.temperature), color: "text-orange-500" },
+                { label: "Out", vals: outReadings.map(r => r.temperature), color: "text-green-500" },
+              ]}
               unit="°C"
             />
             <DualLineChart series={tempSeries} unit="°C" range={range} />
@@ -509,20 +524,44 @@ export default function DataTab() {
               <span className="text-[10px] text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">Vergrößern ↗</span>
             </div>
             <StatsRow
-              ghVals={ghReadings.map(r => r.humidity)}
-              outVals={outReadings.map(r => r.humidity)}
+              series={[
+                { label: "GH", vals: ghReadings.map(r => r.humidity), color: "text-orange-500" },
+                { label: "Out", vals: outReadings.map(r => r.humidity), color: "text-green-500" },
+              ]}
               unit="%"
-          />
+            />
             <DualLineChart series={humSeries} unit="%" range={range} />
           </div>
           <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4 md:hidden">
             <div className="text-sm font-medium text-gray-700 mb-1">💧 Luftfeuchtigkeit</div>
             <StatsRow
-              ghVals={ghReadings.map(r => r.humidity)}
-              outVals={outReadings.map(r => r.humidity)}
+              series={[
+                { label: "GH", vals: ghReadings.map(r => r.humidity), color: "text-orange-500" },
+                { label: "Out", vals: outReadings.map(r => r.humidity), color: "text-green-500" },
+              ]}
               unit="%"
             />
             <DualLineChart series={humSeries} unit="%" range={range} />
+          </div>
+        </>
+      )}
+
+      {/* ── Schlafzimmer (ehem. Outdoor-Thermometer, seit 06.10.2026 im Schlafzimmer) ── */}
+      {bedroomReadings.length > 0 && (
+        <>
+          <div className="flex items-center gap-1.5 text-xs text-gray-500 mt-2">
+            <span className="inline-block w-3 h-1 rounded-full" style={{ backgroundColor: BEDROOM_COLOR }} />
+            🛏️ Schlafzimmer <span className="text-gray-400">· seit 06.10.2026, ehem. Outdoor-Thermometer</span>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4">
+            <div className="text-sm font-medium text-gray-700 mb-1">🌡️ Temperatur Schlafzimmer</div>
+            <StatsRow series={[{ label: "SZ", vals: bedroomReadings.map(r => r.temperature), color: "text-purple-500" }]} unit="°C" />
+            <DualLineChart series={bedroomTempSeries} unit="°C" range="alle" />
+          </div>
+          <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4">
+            <div className="text-sm font-medium text-gray-700 mb-1">💧 Luftfeuchtigkeit Schlafzimmer</div>
+            <StatsRow series={[{ label: "SZ", vals: bedroomReadings.map(r => r.humidity), color: "text-purple-500" }]} unit="%" />
+            <DualLineChart series={bedroomHumSeries} unit="%" range="alle" />
           </div>
         </>
       )}
@@ -748,7 +787,13 @@ export default function DataTab() {
               </div>
               <button onClick={() => setExpandedChart(null)} className="text-gray-400 hover:text-gray-700 text-xl font-light leading-none">✕</button>
             </div>
-            <StatsRow ghVals={expandedChart.ghVals} outVals={expandedChart.outVals} unit={expandedChart.unit} />
+            <StatsRow
+              series={[
+                { label: "GH", vals: expandedChart.ghVals, color: "text-orange-500" },
+                { label: "Out", vals: expandedChart.outVals, color: "text-green-500" },
+              ]}
+              unit={expandedChart.unit}
+            />
             <DualLineChart series={expandedChart.series} unit={expandedChart.unit} range={range} height={420} />
           </div>
         </div>

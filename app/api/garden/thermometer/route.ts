@@ -1,12 +1,21 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { parseThermometerCSV } from "@/lib/thermometerParser"
+import { parseThermometerCSV, OUTDOOR_SEASON_END, BEDROOM_START } from "@/lib/thermometerParser"
 
 export const dynamic = "force-dynamic"
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const range = searchParams.get("range") ?? "7d"
+  const view = searchParams.get("view")
+
+  if (view === "bedroom") {
+    const readings = await prisma.gardenThermometerReading.findMany({
+      where: { source: "out", timestamp: { gte: BEDROOM_START } },
+      orderBy: { timestamp: "asc" },
+    })
+    return NextResponse.json(readings)
+  }
 
   const now = new Date()
   let from: Date | undefined
@@ -15,8 +24,15 @@ export async function GET(req: NextRequest) {
   else if (range === "7d") from = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
   else if (range === "30d") from = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
 
+  // "out" source became the bedroom sensor after OUTDOOR_SEASON_END — keep it
+  // out of the Outdoor chart/stats from then on.
   const readings = await prisma.gardenThermometerReading.findMany({
-    where: from ? { timestamp: { gte: from } } : undefined,
+    where: {
+      OR: [
+        { source: "gh", ...(from ? { timestamp: { gte: from } } : {}) },
+        { source: "out", timestamp: { ...(from ? { gte: from } : {}), lte: OUTDOOR_SEASON_END } },
+      ],
+    },
     orderBy: { timestamp: "asc" },
   })
 

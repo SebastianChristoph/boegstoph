@@ -4,6 +4,13 @@ export interface ThermometerReading {
   humidity: number
 }
 
+// "out" sensor moved from outdoor (Gartenhaus) to the bedroom in Oct 2026.
+// Data through this date stays the Outdoor season; data from BEDROOM_START
+// is the bedroom. The gap between the two dates is the moving transition
+// and is deliberately excluded from both.
+export const OUTDOOR_SEASON_END = new Date("2026-10-04T23:59:59.999Z")
+export const BEDROOM_START = new Date("2026-10-06T00:00:00.000Z")
+
 export function parseThermometerCSV(csv: string): ThermometerReading[] {
   const lines = csv.replace(/^\uFEFF/, "").trim().split(/\r?\n/)
   if (lines.length < 2) return []
